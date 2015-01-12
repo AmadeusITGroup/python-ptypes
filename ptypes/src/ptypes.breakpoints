@@ -1,0 +1,14 @@
+set directories /home/dvadasz/Downloads/Python-2.7.3/Modules
+break ptypes.c:1141
+  commands
+    enable 2 3 4
+  end
+enable
+break typeobject.c:2306
+disable
+break typeobject.c:6095
+disable
+break typeobject.c:2296 
+disable
+
+#  valgrind --suppressions=/home/dvadasz/Downloads/Python-2.7.3/Misc/valgrind-python.supp --leak-check=yes python-dbg ptest.py > valgrind.out.txt 2>&1

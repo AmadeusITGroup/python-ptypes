@@ -1,0 +1,14 @@
+#md5.pxd
+#md5.h
+#md5.c
+#metaize.pxd
+#metaize.h
+#metaize.c
+
+def make_ext(modname, pyxfilename):
+    from distutils.extension import Extension
+    return Extension("storage", ["storage.pyx", "md5.c"],) # , "metaize.c"
+                                  
+#     return Extension(name = 'storage',
+#                      sources=[pyxfilename, 'hello.c'],
+#                      include_dirs=['/myinclude'] )
