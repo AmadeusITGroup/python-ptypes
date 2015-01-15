@@ -1,9 +1,6 @@
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension
 from Cython.Distutils import build_ext
 from Cython.Build.Dependencies import cythonize
-
-from setuptools import find_packages
 
 setup(
     name='ptypes',
@@ -11,8 +8,7 @@ setup(
     author=u'Amadeus IT Group',
     author_email='opensource@amadeus.com',
     requires=['Cython (>=0.19.2)'],
-    # packages=['ptypes'],
-    packages=find_packages(),
+    packages=['ptypes'],
     cmdclass={'build_ext': build_ext},
     #  One Extension per pyx file;
     # the name of the pyx file must be extensionName + ".pyx"
