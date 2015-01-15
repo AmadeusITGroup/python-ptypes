@@ -6,8 +6,7 @@ from Cython.Build.Dependencies import cythonize
 setup(
     name='ptypes',
     version='0.4',
-    requires=['daemon (>=1.5.5)', 'Cython (>=0.19.2)'],
-    provides=['ptypes'],
+    requires=['Cython (>=0.19.2)'],
     package_dir={'': 'src', 'ptypes': 'src/ptypes'},
     cmdclass={'build_ext': build_ext},
     #  One Extension per pyx file;
@@ -21,7 +20,5 @@ setup(
           ("query",      ["ptypes/query.pyx"]),
           ("buffer",     ["ptypes/buffer.pyx"]),
           ]],
-        include_dirs=['.'],
-        # gdb_debug=True
     ),
 )
