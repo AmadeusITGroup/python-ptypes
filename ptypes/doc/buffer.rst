@@ -62,3 +62,33 @@ First we import the necessary classes:
       >>> del m
       >>> p.close()
       
+      >>> import numpy as np
+      >>> a = np.random.rand(1,2,3) #random values in shape (1,2,3)
+      >>> p = MyStorage(mmapFileName)   
+      
+Let's copy ``a`` into the persistent storage:
+      
+      >>> p.root.myBuffer = p.schema.Buffer(a) 
+      >>> p.close()
+      >>> p = MyStorage(mmapFileName)
+         
+``np.asarray()`` creates an array without copying the data again:
+
+      >>> b = np.asarray(p.root.myBuffer)
+      >>> np.all( a == b )                                             
+      True
+      >>> p.close()                                          #doctest: +ELLIPSIS
+      Traceback (most recent call last):
+       ...
+      ValueError: Cannot close <MyStorage '/home/dvadasz/testfile.mmap'> - some proxies are still around: <persistent Buffer object @offset 0x234fL>
+
+``b`` still refers to ``p.root.myBuffer`` so we cannot close the storage. 
+(If it were possible to close the storage while ``b`` is around, the memory 
+where ``b`` keeps its data would be unmapped, so accessing it through the methods  
+of ``b`` would result in a segmentation fault.) 
+
+      >>> del b
+      
+Now it's fine to close it:
+      
+      >>> p.close() 

@@ -96,7 +96,7 @@ cdef class PBuffer(AssignedByReference):
             cBuffer.o2buf = self.ptype.storage.allocate(view.len)
             PyBuffer_ToContiguous(self.ptype.offset2Address(cBuffer.o2buf), &view, view.len, 'C')
             
-            PyBuffer_FillContiguousStrides(view.len, view.shape, view.strides, view.itemsize, 'C')
+            PyBuffer_FillContiguousStrides(view.ndim, view.shape, view.strides, view.itemsize, 'C')
 #             view.strides[view.ndim-1] = view.itemsize
 #             for i in range(view.ndim-1, 0, -1):
 #                 view.strides[i-1] = view.strides[i] * view.shape[i]            
