@@ -1,7 +1,7 @@
 # cython: profile=False
 
-from storage cimport *
-from query   cimport * 
+from .storage cimport *
+from .query   cimport * 
 from cpython cimport PyObject, Py_buffer 
 from libc.string cimport memcpy, strlen
 

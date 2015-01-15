@@ -8,3 +8,6 @@ TODO
 
 * remove trailing whitespace
 * pep8 !
+* wildcard imports are evil
+* relative imports
+* sort imports

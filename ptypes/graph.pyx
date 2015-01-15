@@ -1,9 +1,9 @@
 # cython: profile=False
 
-from storage cimport *
-from query   cimport * 
+from .storage cimport *
+from .query   cimport * 
 
-from storage import DefaultDict
+from .storage import DefaultDict
 
 import logging
 LOG = logging.getLogger(__name__)

@@ -4,8 +4,8 @@ from math import log as logarithm
 from uuid import uuid4
 # from time import strptime, mktime
 from collections import defaultdict
-from storage cimport *
-from storage import DefaultDict
+from .storage cimport *
+from .storage import DefaultDict
 
 from itertools import count
 
