@@ -81,7 +81,7 @@ cdef class PBuffer(AssignedByReference):
                 
         # value must support the buffer interface
         if 0==PyObject_CheckBuffer(value):
-            raise TypeError("Objects of type '{}' does not support the buffer protocol.".format(type(value).__name__))
+            raise TypeError("Objects of type '{}' do not support the buffer protocol.".format(type(value).__name__))
 
         # get the buffer    
         # XXX assumption: PyObject_GetBuffer does not Py_INCREF(value)

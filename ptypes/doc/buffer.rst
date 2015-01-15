@@ -55,7 +55,7 @@ First we import the necessary classes:
       >>> p.schema.Buffer(a)                                             #doctest: +ELLIPSIS
       Traceback (most recent call last):
        ...
-      TypeError: Objects of type 'array' does not support the buffer protocol.
+      TypeError: Objects of type 'array' do not support the buffer protocol.
       
       >>> m.tobytes()
       'This is a string.'

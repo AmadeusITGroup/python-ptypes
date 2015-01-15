@@ -14,6 +14,7 @@ Contents:
    gettingStarted
    pcollections
    graph
+   buffer
 
 Indices and tables
 ==================

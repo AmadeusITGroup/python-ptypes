@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'ptypes'
-copyright = u'2014, Dénes Vadász'
+copyright = u'2015, Amadeus IT Group'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
