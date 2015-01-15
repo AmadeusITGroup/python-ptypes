@@ -6,6 +6,8 @@ from Cython.Build.Dependencies import cythonize
 setup(
     name='ptypes',
     version='0.4',
+    author=u'Amadeus IT Group',
+    author_email='opensource@amadeus.com',
     requires=['Cython (>=0.19.2)'],
     packages=['ptypes'],
     cmdclass={'build_ext': build_ext},
