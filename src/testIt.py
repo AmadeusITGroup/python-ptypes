@@ -7,7 +7,10 @@ import sys
 import logging
 logging.basicConfig(level='DEBUG')
 import pyximport
-pyximport.install(build_in_temp=False, setup_args={'include_dirs':'../src/ptypes'}) #doctest: +ELLIPSIS
+pyximport.install(build_in_temp=False,
+                  setup_args={
+                      'include_dirs': '../src/ptypes'
+                  })  # doctest: +ELLIPSIS
 sys.path.append('src/ptypes')
 sys.path.append('src')
 sys.path.append('../src/ptypes')
