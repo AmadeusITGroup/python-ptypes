@@ -7,13 +7,13 @@ setup(
     name='ptypes',
     version='0.4',
     requires=['Cython (>=0.19.2)'],
-    package_dir={'': 'src', 'ptypes': 'src/ptypes'},
+    package_dir={'ptypes': 'ptypes'},
     cmdclass={'build_ext': build_ext},
     #  One Extension per pyx file;
     # the name of the pyx file must be extensionName + ".pyx"
     ext_modules=cythonize(
         [Extension(modname,
-                   ['src/'+s for s in sources]) for modname, sources in
+                   [s for s in sources]) for modname, sources in
          [("storage", ["ptypes/storage.pyx", "ptypes/md5.c"]),
           ("basetypes",  ["ptypes/basetypes.pyx"]),
           ("graph",      ["ptypes/graph.pyx"]),
