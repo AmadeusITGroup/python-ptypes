@@ -91,7 +91,7 @@ So let's get rid of the old storage and create a new one:
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
       Creating an improved schema...
 
-Now we have our imporved storage, with an instance of ``Root`` created but still un-initialized:
+Now we have our improved storage, with an instance of ``Root`` created but still un-initialized:
 
       >>> p.root.name is None
       True

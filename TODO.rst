@@ -5,3 +5,6 @@ TODO
 * URL in `setup.py`
 * move lessonsLearnt.txt/delete it
 * create doctest runner
+
+* remove trailing whitespace
+* pep8 !
