@@ -1,0 +1,10 @@
+environments:
+  - linux
+  - python
+build:
+  - virtualenv .venv
+  - .venv/bin/pip install -e .
+test:
+  - py.test
+reports:
+  - mail
