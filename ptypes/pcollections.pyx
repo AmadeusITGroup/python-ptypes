@@ -2,8 +2,8 @@
 
 from libc.stdlib cimport malloc, free, rand, RAND_MAX
 
-from storage cimport *
-from query   cimport * 
+from .storage cimport *
+from .query   cimport * 
 from compiler.ast import Compare
 import logging
 LOG = logging.getLogger(__name__)

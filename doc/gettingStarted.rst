@@ -6,14 +6,14 @@ This page will introduce the usage of the ptypes module through a few basic exam
 We will play with a file called ``testfile.mmap``. First we make sure there is no such file:
  
       >>> import os
-      >>> mmapFileName = '/home/dvadasz/testfile.mmap'
+      >>> mmapFileName = '/tmp/testfile.mmap'
       >>> try: os.unlink(mmapFileName)
       ... except: pass
 
 Now we can start the actual work and create a new storage with a very simple structure.
 First we import the necessary classes:
  
-   >>> from storage import Storage, Structure, StructureMeta
+   >>> from ptypes.storage import Storage, Structure, StructureMeta
    >>> ptype= StructureMeta.__new__(StructureMeta, 'aaa', (object,), dict() )
 
 The ``Storage`` class represents a persistent data store. To make it actually usable, we have to 
@@ -91,7 +91,7 @@ So let's get rid of the old storage and create a new one:
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
       Creating an improved schema...
 
-Now we have our imporved storage, with an instance of ``Root`` created but still un-initialized:
+Now we have our improved storage, with an instance of ``Root`` created but still un-initialized:
 
       >>> p.root.name is None
       True
@@ -208,7 +208,7 @@ using the item access operator, which records the parameters and returns the typ
 instance. The instance is then passed in to the ``define()`` method of the storage,
 which will actually create the new persistent type. Let's see this through an example:  
 
-      >>> from storage import Dict, List
+      >>> from ptypes.storage import Dict, List
       >>> class MyStorage(Storage):
       ...         
       ...     def populateSchema(self):
@@ -385,7 +385,7 @@ The below example also demonstrates that ``define()`` returns the defined type i
 so you can use it in subsequent type definitions.
         
       >>> os.unlink(mmapFileName)
-      >>> from storage import Set
+      >>> from ptypes.storage import Set
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         stringSet1 = self.define( Dict('ThisIsInFactASet')[self.schema.String, None] )         

@@ -10,7 +10,7 @@ Currently the only such data type in the module is ``SkipList``.
 We will play with a file called ``testfile.mmap``. First we make sure there is no such file:
  
       >>> import os
-      >>> mmapFileName = '/home/dvadasz/testfile.mmap'
+      >>> mmapFileName = '/tmp/testfile.mmap'
       >>> try: os.unlink(mmapFileName)
       ... except: pass
 
@@ -23,8 +23,8 @@ and tests are nice if their results are reproducable, we seed the random number 
       
 Now we can start the actual work and create a new storage with a few skip lists.
  
-      >>> from storage import Storage, Structure, StructureMeta
-      >>> from pcollections import SkipList
+      >>> from ptypes.storage import Storage, Structure, StructureMeta
+      >>> from ptypes.pcollections import SkipList
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         self.define( SkipList('ListOfStrings')[self.schema.String] )

@@ -8,15 +8,15 @@ The ``graph`` module provides extension classes for manipulating and persistentl
 We will play with a file called ``testfile.mmap``. First we make sure there is no such file:
  
       >>> import os
-      >>> mmapFileName = '/home/dvadasz/testfile.mmap'
+      >>> mmapFileName = '/tmp/testfile.mmap'
       >>> try: os.unlink(mmapFileName)
       ... except: pass
 
 Now we can start the actual work and create a new storage for a simple graph.
 First we import the necessary classes:
  
-      >>> from storage import Storage, Structure, StructureMeta
-      >>> from graph import Node, Edge
+      >>> from ptypes.storage import Storage, Structure, StructureMeta
+      >>> from ptypes.graph import Node, Edge
       
 ``Node`` and ``Edge`` are *type descriptor classes*: in order to be able to associate data 
 to the nodes and edges of a graph, they can be parametrized with other persistent types.
@@ -95,8 +95,8 @@ know each other.
 To complicate things, we want to have an index of developers and pieces of software sorted 
 by name. We will use skip lists to implement these. 
     
-      >>> from storage import Dict
-      >>> from pcollections import SkipList
+      >>> from ptypes.storage import Dict
+      >>> from ptypes.pcollections import SkipList
       
       >>> sortOrder = """
       ... from operator import attrgetter    
@@ -203,8 +203,8 @@ on *what* needs to be enumerated.
 
 So here is a more efficient (no Python loops) and declarative way of achieving the same goal: 
 
-      >>> from query import Query, Each
-      >>> from graph import FindEdge, NodeAttribute
+      >>> from ptypes.query import Query, Each
+      >>> from ptypes.graph import FindEdge, NodeAttribute
       
       >>> class MyQuery(Query):
       ...     _ndeveloper = Each('devByName')

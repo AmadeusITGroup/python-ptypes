@@ -8,15 +8,15 @@ The ``buffer`` module provides extension classes for persisting any object suppo
 We will play with a file called ``testfile.mmap``. First we make sure there is no such file:
  
       >>> import os
-      >>> mmapFileName = '/home/dvadasz/testfile.mmap'
+      >>> mmapFileName = '/tmp/testfile.mmap'
       >>> try: os.unlink(mmapFileName)
       ... except: pass
 
 Now we can start the actual work and create a new storage for the persistent buffers.
 First we import the necessary classes:
  
-      >>> from storage import Storage, Structure, StructureMeta
-      >>> from buffer import Buffer
+      >>> from ptypes.storage import Storage, Structure, StructureMeta
+      >>> from ptypes.buffer import Buffer
       
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
@@ -80,7 +80,7 @@ Let's copy ``a`` into the persistent storage:
       >>> p.close()                                          #doctest: +ELLIPSIS
       Traceback (most recent call last):
        ...
-      ValueError: Cannot close <MyStorage '/home/dvadasz/testfile.mmap'> - some proxies are still around: <persistent Buffer object @offset 0x234fL>
+      ValueError: Cannot close <MyStorage '/tmp/testfile.mmap'> - some proxies are still around: <persistent Buffer object @offset ...>
 
 ``b`` still refers to ``p.root.myBuffer`` so we cannot close the storage. 
 (If it were possible to close the storage while ``b`` is around, the memory 

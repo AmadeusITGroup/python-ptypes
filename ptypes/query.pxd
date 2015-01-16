@@ -1,4 +1,4 @@
-from storage cimport *
+from .storage cimport *
         
 cdef class Variable(object):
     cdef:
