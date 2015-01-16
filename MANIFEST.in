@@ -1,2 +1,2 @@
 include ptypes/md5.c ptypes/md5.h ptypes/md5.pxd
-recursive-include ptypes *.pyx *.pxd
+recursive-include ptypes *.pyx *.pyxbld *.pxd
