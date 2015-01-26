@@ -3,3 +3,4 @@
 /.tox/
 *\.so
 *\.pyc
+/ptypes.egg-info/
