@@ -149,7 +149,7 @@ cdef class SkipListMeta(PersistentMeta):
         SkipNodeMeta entryClass
 
     @classmethod
-    def typedef(PersistentMeta   meta,
+    def _typedef(PersistentMeta   meta,
                 Storage          storage,
                 str              className,
                 type             proxyClass,
@@ -164,12 +164,12 @@ cdef class SkipListMeta(PersistentMeta):
             str entryName = ('__{valueClass.__name__}AsSkipListNode'
                              .format(valueClass=valueClass)
                              )
-            SkipNodeMeta entryClass = SkipNodeMeta.typedef(storage, entryName,
+            SkipNodeMeta entryClass = SkipNodeMeta._typedef(storage, entryName,
                                                            PSkipNode,
                                                            valueClass,
                                                            sortOrder)
 
-        return super(SkipListMeta, meta).typedef(storage, className,
+        return super(SkipListMeta, meta)._typedef(storage, className,
                                                  proxyClass, entryClass)
 
     def __init__(ptype,
@@ -184,7 +184,7 @@ cdef class SkipListMeta(PersistentMeta):
         ptype.entryClass  =  entryClass
 
     def reduce(ptype):
-        return ('typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
+        return ('_typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
                 ('PersistentMeta', ptype.entryClass.valueClass.__name__),
                 ptype.entryClass.sortOrder,
                 )

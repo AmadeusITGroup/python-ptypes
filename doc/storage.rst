@@ -1,8 +1,8 @@
-===========================
-Getting Started with ptypes
-===========================
+===============================
+Getting Started with ``ptypes``
+===============================
 
-This page will introduce the usage of the ptypes module through a few basic examples.
+This page will introduce the usage of the ``ptypes`` module through a few basic examples.
 We will play with a file called ``testfile.mmap``. First we make sure there is no such file:
  
       >>> import os

@@ -36,7 +36,7 @@ cdef class NodeMeta(PersistentMeta):
         ptype.valueClass  =  valueClass
 
     def reduce(ptype):
-        return ('typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
+        return ('_typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
                 ('PersistentMeta', ptype.valueClass.__name__)
                 )
 
@@ -188,7 +188,7 @@ cdef class EdgeMeta(PersistentMeta):
         ptype.o2Name = storage.stringRegistry.get(ptype.__name__).offset
 
     def reduce(ptype):
-        return ('typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
+        return ('_typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
                 ('PersistentMeta', ptype.fromNodeClass.__name__),
                 ('PersistentMeta', ptype.toNodeClass.__name__),
                 ('PersistentMeta', ptype.valueClass.__name__),

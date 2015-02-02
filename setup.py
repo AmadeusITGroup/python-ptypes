@@ -7,6 +7,8 @@ setup(
     version='0.4',
     author=u'Amadeus IT Group',
     author_email='opensource@amadeus.com',
+    #url = "http://example.com/project/home/page/",
+    #download_url = ,
     requires=['Cython (>=0.19.2)'],
     packages=['ptypes'],
     cmdclass={'build_ext': build_ext},

@@ -1,19 +1,20 @@
 # cython: profile=False
 
+from libc.string cimport memcpy, memcmp, memset
+
+import logging
+LOG = logging.getLogger(__name__)
+
 from cPickle import dumps, loads
 from math import pow, log as logarithm
 from os import SEEK_SET, O_CREAT, O_RDWR
 from types import ModuleType
 from collections import namedtuple
 from time import strptime, mktime
-import logging
 import os
 import threading
 import gc
 
-from libc.string cimport memcpy, memcmp, memset
-
-LOG = logging.getLogger(__name__)
 
 cdef class PList
 
@@ -41,13 +42,25 @@ cdef class Persistent(object):
         return bool(self.richcmp(other, op))
 
     property id:
-        """ Read-only property; a tuple that uniquely identifies the object.
+        """ Read-only property giving a tuple uniquely identifies the object.
         """
 
         def __get__(self):
             return id(self.storage), self.offset
 
     def isSameAs(Persistent self, Persistent other):
+        """ Compare the identity of :class:`Persistent` instances.
+
+        Note that the ``is`` operator compares the identity of the proxy
+        objects, not that of the persistent objects they refer to.
+
+        .. py:function:: isSameAs(self, other)
+
+        :param Persistent self: proxy for a persistent object
+        :param Persistent other: proxy for another persistent object
+        :return: ``True`` if ``self`` refers to the same persistent object as
+                    ``other``, otherwise ``False``.
+        """
         return self.offset == other.offset and self.storage is other.storage
 
     cdef int richcmp(Persistent self, other, int op) except? -123:
@@ -135,22 +148,26 @@ cdef class PersistentMeta(type):
     """ Abstract base meta class for all persistent types.
     """
     @classmethod
-    def typedef(PersistentMeta meta, Storage storage, str className,
+    def _typedef(PersistentMeta meta, Storage storage, str className,
                 type proxyClass, *args):
         """ Create and initialize a new persistent type.
 
-            @param meta: This type object must be the one representing
-                    PersistentMeta or another class derived from
-                    PersistentMeta. The new persistent type is
-                    created using this type object as its meta-class.
+        This is a non-public classmethod of :class:`PersistentMeta` and 
+        derived classes.
 
-            @param storage:
-            @param className: This will be the name of the new type.
-            @param proxyClass: The new persistent type will be a
-                    subclass of this class.
+        :param meta: This type object must be the one representing
+                :class:`PersistentMeta` or another class derived from
+                it. (This parameter is normally filled in with the meta-class 
+                of the class the method is invoked on.) The new persistent type is
+                created using this type object as its meta-class.
 
-            @return: A properly initialised PersistentMeta instance
-                    representing the newly created persistent type.
+        @param storage:
+        @param className: This will be the name of the new type.
+        @param proxyClass: The new persistent type will be a
+                subclass of this class.
+
+        @return: A properly initialised PersistentMeta instance
+                representing the newly created persistent type.
         """
         cdef PersistentMeta ptype = meta.__new__(meta, className,
                                                  (proxyClass,),
@@ -222,7 +239,7 @@ cdef class PersistentMeta(type):
             return None
 
     def reduce(self):
-        return 'typedef', self.__name__, self.__class__, self.proxyClass
+        return '_typedef', self.__name__, self.__class__, self.proxyClass
 
     cdef assign(PersistentMeta ptype, void *target, source, ):
         """ Assign source to target converting to persistent if needed.
@@ -616,7 +633,7 @@ cdef class PHashEntry(AssignedByValue):
 cdef class HashTableMeta(PersistentMeta):
 
     @classmethod
-    def typedef(PersistentMeta meta, Storage storage, str className,
+    def _typedef(PersistentMeta meta, Storage storage, str className,
                 type proxyClass, PersistentMeta keyClass,
                 PersistentMeta valueClass=None):
         if keyClass is None:
@@ -632,13 +649,13 @@ cdef class HashTableMeta(PersistentMeta):
                     .format(keyClass=keyClass)
                 )
             )
-            PersistentMeta entryClass = HashEntryMeta.typedef(storage,
+            PersistentMeta entryClass = HashEntryMeta._typedef(storage,
                                                               entryName,
                                                               PHashEntry,
                                                               keyClass,
                                                               valueClass)
 
-        return super(HashTableMeta, meta).typedef(storage, className,
+        return super(HashTableMeta, meta)._typedef(storage, className,
                                                   proxyClass, entryClass)
 
     def __init__(self,
@@ -653,7 +670,7 @@ cdef class HashTableMeta(PersistentMeta):
         self.hashEntryClass =  hashEntryClass
 
     def reduce(self):
-        return ('typedef', self.__name__, self.__class__, self.proxyClass,
+        return ('_typedef', self.__name__, self.__class__, self.proxyClass,
                 ('PersistentMeta',
                  None if self.hashEntryClass.keyClass is None
                  else self.hashEntryClass.keyClass.__name__),
@@ -852,12 +869,12 @@ cdef class DefaultDict(Dict):
 cdef class ListMeta(PersistentMeta):
 
     @classmethod
-    def typedef(PersistentMeta meta, Storage storage, str className,
+    def _typedef(PersistentMeta meta, Storage storage, str className,
                 type proxyClass, PersistentMeta valueClass):
         if valueClass is None:
             raise TypeError("The type parameter specifying the type of list "
                             "elements cannot be None.")
-        return super(ListMeta, meta).typedef(storage, className, proxyClass,
+        return super(ListMeta, meta)._typedef(storage, className, proxyClass,
                                              valueClass)
 
     def __init__(self,
@@ -873,7 +890,7 @@ cdef class ListMeta(PersistentMeta):
         self.o2Value = sizeof(CListEntry)
 
     def reduce(self):
-        return ('typedef', self.__name__, self.__class__, self.proxyClass,
+        return ('_typedef', self.__name__, self.__class__, self.proxyClass,
                 ('PersistentMeta', self.valueClass.__name__),
                 )
 
@@ -1463,7 +1480,7 @@ cdef class Storage(MemoryMappedFile):
                         )
             for s in self.pickledTypeList:
                 t = loads(s.contents)
-                if t[0] == 'typedef':
+                if t[0] == '_typedef':
                     className, meta, proxyClass = t[1:4]
                     typeParams = [
                         getattr(self.schema, typeParam[1])
@@ -1472,7 +1489,7 @@ cdef class Storage(MemoryMappedFile):
                         else typeParam
                         for typeParam in t[4:]
                     ]
-                    meta.typedef(self, className, proxyClass, *typeParams)
+                    meta._typedef(self, className, proxyClass, *typeParams)
                 elif t[0] == 'StructureMeta':
                     className, bases, attributeDict = t[1:4]
                     attributeDict['__metaclass__'] = StructureMeta
@@ -1586,7 +1603,7 @@ cdef class Storage(MemoryMappedFile):
             type meta = typeDescriptor.meta
         # need to check if they are filled in
         typeDescriptor.verifyTypeParameters(typeDescriptor.typeParameters)
-        return meta.typedef(storage, typeDescriptor.className,
+        return meta._typedef(storage, typeDescriptor.className,
                             typeDescriptor.proxyClass,
                             *typeDescriptor.typeParameters)
 

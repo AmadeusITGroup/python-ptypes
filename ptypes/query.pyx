@@ -654,12 +654,12 @@ class QueryMeta(type):
                 aggregator.aggregateField =\
                     <PField?> getattr(AggregateClass, aggregator.name)
 
-            _                = HashEntryMeta.typedef(output2,
+            _                = HashEntryMeta._typedef(output2,
                                                      'ContingencyCell',
                                                      PHashEntry,
                                                      'Group',
                                                      'Aggregate')
-            ContingencyTable = HashTableMeta.typedef(output2,
+            ContingencyTable = HashTableMeta._typedef(output2,
                                                      'ContingencyTable',
                                                      PConTable,
                                                      'ContingencyCell')

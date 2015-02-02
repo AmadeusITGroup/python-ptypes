@@ -191,13 +191,18 @@ We can populate this data structure ...
       developer = josh, developersProgram = lop
       developer = josh, developersProgram = ripple
 
+.. _declarative-queries:
+
+Declarative Queries
+-------------------
+
 In general, a query has a two-fold functionality:
  * select certain combinations of the objects in the storage
  * do something useful with the selected combinations
 
-Note that in the above query the only "useful" part is the print statement.
-The rest is a set of for cycles and object navigation code, which are slow and 
-look a bit boilerplate. The developer writing this code is forced to focus on *how* 
+Note that in the above example the only "useful" part is the print statement.
+The rest is a set of for cycles and object navigation code, which is slow and 
+looks a bit boilerplate. The developer writing this code is forced to focus on *how* 
 (by what procedure) to enumerate the tuples of interest instead of concentrating
 on *what* needs to be enumerated.
 

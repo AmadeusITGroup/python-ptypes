@@ -86,7 +86,7 @@ cdef class BufferMeta(PersistentMeta):
                                 sizeof(CBuffer))
 
     def reduce(ptype):
-        return ('typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
+        return ('_typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
                 #                 ptype.reconstructor
                 )
 
