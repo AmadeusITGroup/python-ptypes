@@ -4,6 +4,10 @@ Participating in the development of ``ptypes``
 
 What you will need
 ==================
+
+.. note:: Many of the below requirements can be easily installed by 
+   uncommenting the appropriate lines in ``setup.py``.
+
 Here is a list of the tools you are likely to need if you want to work on 
 ``ptypes``:
 
