@@ -1,14 +1,28 @@
 from setuptools import setup, Extension
 
+# Monkey-patch distutils.command.sdist so that versioneer derives its 
+# command class from setuptools, not distutils
+from setuptools.command.sdist import sdist as setupToolsSdistClass
+import distutils.command.sdist as distutilsSdistModule
+distutilsSdistModule.sdist = setupToolsSdistClass
+# Now we can import verioneer
+import versioneer
+
+versioneer.VCS = 'git'
+versioneer.versionfile_source = 'ptypes/_version.py'
+versioneer.versionfile_build = 'ptypes/_version.py'
+versioneer.tag_prefix = '' # tags are like 1.2.0
+versioneer.parentdir_prefix = 'ptypes-' # dirname like 'myproject-1.2.0'
+
 # Configuration to build Cython extensions
 try:
     from Cython.Build import cythonize
 except ImportError:
-    # cython is not installed, use the .c file
+    # cython is not installed, use the .c files
     hasCython = False
     extExtention = '.c'
 else:
-    # cython is installed, use .pyx file
+    # cython is installed, use the .pyx files
     hasCython = True
     extExtention = '.pyx'
 
@@ -31,8 +45,6 @@ for moduleName, extraSources in moduleNamesAndExtraSources:
     sources.extend(extraSources)
     moduleNameAndSources.append((moduleName, sources))
     ext_modules.append(Extension('ptypes.' + moduleName, sources))
-import pprint
-pprint.pprint(moduleNameAndSources)
 
 # cythonize() checks the timestamps of Cython modules and their dependencies
 # and compiles them if it detects changes. Since a source distribution 
@@ -50,10 +62,12 @@ with open('README.rst') as file:
 
 setup(
     name='ptypes',
-    version='0.4',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
+
     author=u'Amadeus IT Group',
     author_email='opensource@amadeus.com',
-#     description='',
+    description='Persistent types: storing objects in memory-mapped files without serializing',
     long_description=long_description,
     #url = "http://example.com/project/home/page/",
     #download_url = ,

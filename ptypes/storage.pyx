@@ -848,12 +848,14 @@ cdef class PDefaultHashTable(PHashTable):
         value = self.hashEntryClass.valueClass()
         self.setValue(p2Entry, value)
 
+
 ############################  Set #############################
 cdef class Set(TypeDescriptor):
     meta = HashTableMeta
     proxyClass = PHashTable
     minNumberOfParameters=1
     maxNumberOfParameters=1
+
 
 ############################  Dictionary #############################
 cdef class Dict(TypeDescriptor):
@@ -862,8 +864,10 @@ cdef class Dict(TypeDescriptor):
     minNumberOfParameters=2
     maxNumberOfParameters=2
 
+
 cdef class DefaultDict(Dict):
     proxyClass = PDefaultHashTable
+
 
 ############################## List ######################################
 cdef class ListMeta(PersistentMeta):
@@ -1127,7 +1131,7 @@ cdef class PField(object):
 
 ############################## Storage ######################################
 
-cdef char *ptypesMagic     = "ptypes 0.3"
+cdef char *ptypesMagic     = "ptypes 0.3"     # TODO: take this from versioneer
 cdef char *ptypesRedoMagic = "ptypesRedo 0.3"
 DEF lengthOfMagic = 15
 DEF numMetadata = 2
