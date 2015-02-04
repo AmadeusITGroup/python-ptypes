@@ -6,23 +6,29 @@
 Welcome to the documentation of the ``ptypes`` project!
 =======================================================
 
-Ptypes is an extension module written in Cython to provide 
-an efficient persistency solution to Python based on memory mapped files.
+The ``ptypes`` ("persistent types") package is a set of Python extension
+modules written in `Cython <http://cython.org/>`_. 
+It provides a persistency mechanism to `Python <http://www.python.org/>`_
+programs based on memory mapped files. ``ptypes`` emphasises execution
+speed. The persistent objects (persistent versions of ints, floats, strings, 
+structures, lists, sets, dicts plus any extension type supporting the
+`buffer interface <https://docs.python.org/2.7/c-api/buffer.html>`_) can be 
+accessed and manipulated directly, without serializing and de-serializing them.
 
-We beleive that on the long term it has the potential to evolve into an 
-efficient multi-core programing platform for CPython, working around the 
-problem posed by the  GIL.
+The package also implements data types for property graphs (nodes and
+edges), as well as a basic query interface allowing the enumeration of 
+object-tuples matching a given pattern at (nearly) the speed of a C program.
 
-In its current state ``ptypes`` is highly experimental with a bunch of missing
-features. In particular it does not support multi-threading or 
-multi-processing and there is no guarantee on
+In its current shape, ``ptypes`` is experimental with regards to the stability 
+of its API and the completeness of its functionality. 
+In particular it does not support multi-threading or 
+multi-processing and there is **no guarantee** on
 
 * the stability of its API
 * the portability of the data stored with it
 * the evolvability of the schema of the data
 * the atomicity of updates in the presence of failures.
 
-Its potentials are high though, so you are wellcome to participate!
 
 Contents:
 ---------

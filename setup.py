@@ -28,7 +28,6 @@ else:
 
 moduleNamesAndExtraSources = [
           ("storage",       ["ptypes/md5.c"]),
-          ("basetypes",     []),
           ("graph",         []),
           ("query",         []),
           ("buffer",        []),
@@ -109,4 +108,5 @@ setup(
     tests_require=['pytest',
                    'numpy',
                    ],
+    include_package_data = True,  # copy sources into the package dir for gdb
 )
