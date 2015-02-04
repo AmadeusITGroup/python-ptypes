@@ -89,7 +89,7 @@ cdef class TypeDescriptor(object):
         readonly str className
         readonly tuple typeParameters
 
-cdef class UInt(TypeDescriptor):
+cdef class Int(TypeDescriptor):
     pass
 cdef class Float(TypeDescriptor):
     pass

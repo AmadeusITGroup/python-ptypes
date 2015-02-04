@@ -58,7 +58,7 @@ representing the *schema* of the storage.
       >>> p.schema
       <module 'schema' (built-in)>
       >>> sorted(dir(p.schema))
-      ['Float', 'Root', 'String', 'UInt', '__doc__', '__name__']
+      ['Float', 'Int', 'Root', 'String', '__doc__', '__name__']
 
 It is essential that before we lose the reference to a storage object we ``close()`` it, 
 otherwise the underlying file remains open (occupying disk space even if deleted) and 
@@ -74,7 +74,7 @@ Now here is an improved version of our storage, this time with the structure hav
       ...         class Root(Structure):  
       ...             __metaclass__ = StructureMeta
       ...             name = self.schema.String
-      ...             age = self.schema.UInt
+      ...             age = self.schema.Int
       ...             weight = self.schema.Float
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
 
@@ -96,7 +96,7 @@ Now we have our improved storage, with an instance of ``Root`` created but still
       >>> p.root.name is None
       True
       >>> p.root.age                                                 #doctest: +ELLIPSIS
-      <persistent UInt object '0' @offset 0x...>
+      <persistent Int object '0' @offset 0x...>
       >>> p.root.weight                                               #doctest: +ELLIPSIS 
       <persistent Float object '0.0' @offset 0x...>
        
@@ -110,7 +110,7 @@ proxy objects back, allowing for various operations on them.
 To get the original Python integer back, you have to access the ``contents`` attribute of the proxy:   
 
       >>> p.root.age, p.root.age.contents                             #doctest: +ELLIPSIS
-      (<persistent UInt object '27' @offset 0x...>, 27L)
+      (<persistent Int object '27' @offset 0x...>, 27)
       >>> p.root.weight, p.root.weight.contents                       #doctest: +ELLIPSIS
       (<persistent Float object '73.1415926' @offset 0x...>, 73.1415926)
 
@@ -119,16 +119,16 @@ To get the original Python integer back, you have to access the ``contents`` att
       >>> p.root.age.inc()
       >>> p.root.weight.add(31.45)                                      
       >>> p.root.age.contents, p.root.weight.contents                   
-      (28L, 104.5915926)
+      (28, 104.5915926)
       
-The UInt and Float persistent types are assigned by value because
-it takes less memory to store them directly than to create UInt or Float objects and store offsets to those.
+The Int and Float persistent types are assigned by value because
+it takes less memory to store them directly than to create Int or Float objects and store offsets to those.
 The downside of this decision is that one cannot instanciate these objects diretly:
         
-      >>> i = p.schema.UInt(3)                                      #doctest: +ELLIPSIS +REPORT_NDIFF
+      >>> i = p.schema.Int(3)                                      #doctest: +ELLIPSIS +REPORT_NDIFF
       Traceback (most recent call last):
         ...
-      TypeError: <persistent class 'UInt'> exhibits store-by-value semantics and therefore can only be instantiated inside a container (e.g. in Structure)
+      TypeError: <persistent class 'Int'> exhibits store-by-value semantics and therefore can only be instantiated inside a container (e.g. in Structure)
 
 Types assigned by value can only be created as part of an other object containing them.
 When the container is created, the space allocated for it includes the space for the 
@@ -136,7 +136,7 @@ assigned-by-value types. The proxy objects or their ``contents`` descriptor can 
 to read or write their contents, but there is neither a need nor a way to create 
 assigned-by-value instances in a stand-alone fashion.  
 
-In contrast to UInt and Float, persistent strings are assigned by reference. 
+In contrast to Int and Float, persistent strings are assigned by reference. 
 The assignment to a field will convert a Python string implicitly to a persistent string:
 
       >>> p.root.name = 'James Bond'
@@ -216,7 +216,7 @@ which will actually create the new persistent type. Let's see this through an ex
       ...         class Agent(Structure):  
       ...             __metaclass__ = StructureMeta
       ...             name = self.schema.String
-      ...             age = self.schema.UInt
+      ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...         
       ...         self.define( List('ListOfAgents')[Agent] )         
@@ -321,15 +321,15 @@ with types assigned by value:
  
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         self.define( List('ListOfUInts' )[self.schema.UInt ] )         
+      ...         self.define( List('ListOfInts' )[self.schema.Int ] )         
       ...         self.define( List('ListOfFloats')[self.schema.Float] )         
       ...         
       ...         class Root(Structure):
       ...             __metaclass__ = StructureMeta
-      ...             uints = self.schema.ListOfUInts      
+      ...             uints = self.schema.ListOfInts      
       ...             floats = self.schema.ListOfFloats      
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)      #doctest: +ELLIPSIS
-      >>> p.root.uints = p.schema.ListOfUInts()
+      >>> p.root.uints = p.schema.ListOfInts()
       >>> p.root.floats = p.schema.ListOfFloats()
       >>> from random import seed, random
       >>> seed(13)
@@ -348,7 +348,7 @@ with types assigned by value:
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         self.define( Dict('MyType')[self.schema.UInt, self.schema.String] )         
+      ...         self.define( Dict('MyType')[self.schema.Int, self.schema.String] )         
       ...         
       ...         class Root(Structure):
       ...             __metaclass__ = StructureMeta

@@ -126,7 +126,6 @@ cdef class PSkipNode(AssignedByReference):
                 return doesDiffer >= 0  # self >= other
             assert False, "Unknown operation code '{0}".format(op)
         else:
-            #             LOG.warn(repr(key))
             return key.richcmp(other, op)
 
 

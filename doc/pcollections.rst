@@ -29,7 +29,7 @@ Now we can start the actual work and create a new storage with a few skip lists.
       ...     def populateSchema(self):
       ...         self.define( SkipList('ListOfStrings')[self.schema.String] )
       ...         self.define( SkipList('ListOfFloats')[self.schema.Float] )
-      ...         self.define( SkipList('ListOfInts')[self.schema.UInt] )
+      ...         self.define( SkipList('ListOfInts')[self.schema.Int] )
       ...         class Root(Structure):  
       ...             __metaclass__ = StructureMeta
       ...             sortedStrings= self.schema.ListOfStrings
@@ -64,7 +64,7 @@ We can examine what data we entered into them:
       >>> ' '.join( str(word) for word in p.root.sortedStrings)
       'At At Lorem Lorem Lorem Lorem Stet Stet accusam accusam aliquyam aliquyam amet, amet, amet. amet. clita clita consetetur consetetur diam diam diam diam dolor dolor dolor dolor dolore dolore dolores dolores duo duo ea ea eirmod eirmod elitr, elitr, eos eos erat, erat, est est et et et et et et et et gubergren, gubergren, invidunt invidunt ipsum ipsum ipsum ipsum justo justo kasd kasd labore labore magna magna no no nonumy nonumy rebum. rebum. sadipscing sadipscing sanctus sanctus sea sea sed sed sed sed sit sit sit sit takimata takimata tempor tempor ut ut vero vero voluptua. voluptua.'
       >>> [x.contents for x in p.root.sortedInts]
-      [2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 6L, 7L, 7L, 7L, 7L, 7L, 7L, 8L, 8L, 8L, 8L, 8L, 8L, 9L, 9L, 10L, 10L, 10L, 10L, 10L, 10L]
+      [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 9, 9, 10, 10, 10, 10, 10, 10]
 
 The ``range(from, to)`` method can be used to iterate over items of the list falling into a given range.
 Specifying ``None`` as ``from`` or ``to`` is respectively interpreted as starting the 
@@ -113,7 +113,7 @@ Let's see what happens if we try to insert structures into a skip list:
       ...         class Agent(Structure):  
       ...             __metaclass__ = StructureMeta
       ...             name = self.schema.String
-      ...             age = self.schema.UInt
+      ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...         
       ...         self.define( SkipList('ListOfAgents')[self.schema.Agent] )
@@ -132,12 +132,14 @@ Let's see what happens if we try to insert structures into a skip list:
       >>> p.close()
       >>> os.unlink(mmapFileName)
 
-The pythonic way to overcome this is to define a comparison function or (preferably) a function that
-extracts from the structure a key having a sort order.
-The definitions of these functions have to be supplied in a string containing a Python code snippet.
-The snippet will be executed in a name space when the storage is opened and the persistent type is created.
-If the name space contains the names ``getKeyFromValue`` or ``compare`` after the execution of the snippet, 
-then the objects associated with these names will be called to get the keys from the values or to 
+The pythonic way to overcome this is to define a comparison function or 
+(preferably) a function that extracts from the structure a key having a sort 
+order. The definitions of these functions have to be supplied in a string 
+containing a Python code snippet. The snippet will be executed in a name space 
+when the storage is opened and the persistent type is created.
+If the name space contains the names ``getKeyFromValue`` or ``compare`` after 
+the execution of the snippet, then the objects associated with these names 
+will be called to get the keys from the values or to 
 perform 3-way comparison of the values inserted into the skip list.  
   
 The snippet becomes part of the type definition of the list and gets saved into the storage. 
@@ -152,15 +154,16 @@ The snippet becomes part of the type definition of the list and gets saved into 
       ...
       ... def compare(x, y):
       ...     # demonstrate when we compare stuff by printing x & y
-      ...     print "Comparing {0} and {1}".format(repr(x), repr(y))
-      ...     return cmp(x, y)
+      ...     rv = cmp(x, y)
+      ...     print "Comparing {0} and {1}: {2}".format(repr(x), repr(y), rv)
+      ...     return rv
       ... """
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         class Agent(Structure):  
       ...             __metaclass__ = StructureMeta
       ...             name = self.schema.String
-      ...             age = self.schema.UInt
+      ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...         
       ...         self.define( SkipList('ListOfAgents')[self.schema.Agent, sortOrder] )
@@ -173,9 +176,7 @@ The snippet becomes part of the type definition of the list and gets saved into 
       >>> for agentName, age, weight in (("Felix Leiter", 31, 95.3), ("Miss Moneypenny", 23, 65.4), ("Bill Tanner",57, 73.9)): #doctest: +ELLIPSIS 
       ...     agent = p.schema.Agent(name=agentName, age=age, weight=weight )
       ...     p.root.sortedAgents.insert(agent)
-      Comparing <persistent UInt object '31' @offset 0x...L> and <persistent UInt object '23' @offset 0x...L>
-      Comparing <persistent UInt object '23' @offset 0x...L> and <persistent UInt object '57' @offset 0x...L>
-      Comparing <persistent UInt object '31' @offset 0x...L> and <persistent UInt object '57' @offset 0x...L>
+      Comparing ...
       >>> for agent in p.root.sortedAgents:
       ...     print agent.name
       Miss Moneypenny
@@ -190,8 +191,7 @@ The next time we open the storage, the snippet is again executed:
       Sort order is now being defined.
       >>> agent = p.schema.Agent(name="Auric Goldfinger", age=65, weight=87.3 )
       >>> p.root.sortedAgents.insert(agent)                                       #doctest: +ELLIPSIS
-      Comparing <persistent UInt object '23' @offset 0x...L> and <persistent UInt object '65' @offset 0x...L>
-      Comparing <persistent UInt object '57' @offset 0x...L> and <persistent UInt object '65' @offset 0x...L>
+      Comparing ...
       >>> for agent in p.root.sortedAgents:
       ...     print agent.name
       Miss Moneypenny

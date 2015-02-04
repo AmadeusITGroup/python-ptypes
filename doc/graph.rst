@@ -108,13 +108,13 @@ by name. We will use skip lists to implement these.
       ...
       ...         class Developer(Structure):  
       ...             __metaclass__ = StructureMeta
-      ...             id  = self.schema.UInt
+      ...             id  = self.schema.Int
       ...             name = self.schema.String
-      ...             age  = self.schema.UInt
+      ...             age  = self.schema.Int
       ...
       ...         class Software(Structure):  
       ...             __metaclass__ = StructureMeta
-      ...             id  = self.schema.UInt
+      ...             id  = self.schema.Int
       ...             name = self.schema.String
       ...             lang = self.schema.String
       ...
@@ -127,7 +127,7 @@ by name. We will use skip lists to implement these.
       ...
       ...         class WeightedRelation(Structure):  
       ...             __metaclass__ = StructureMeta
-      ...             id  = self.schema.UInt
+      ...             id  = self.schema.Int
       ...             weight = self.schema.Float
       ...
       ...         self.define( Edge('created')[NDeveloper, NSoftware , WeightedRelation] )

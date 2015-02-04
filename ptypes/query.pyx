@@ -647,7 +647,7 @@ class QueryMeta(type):
                               storage=output2
                               )
             for aggregator in aggregators:
-                attributes[aggregator.name] = output2.schema.UInt
+                attributes[aggregator.name] = output2.schema.Int
             AggregateClass = StructureMeta('Aggregate', (Structure,),
                                            attributes)
             for aggregator in aggregators:

@@ -339,23 +339,23 @@ cdef class TypeDescriptor(object):
                                 self=self, typeParameters=typeParameters)
                             )
 
-############################## UInt  ######################################
+############################## Int  ######################################
 
-cdef class UIntMeta(PersistentMeta):
+cdef class IntMeta(PersistentMeta):
 
-    def __init__(UIntMeta ptype,
+    def __init__(IntMeta ptype,
                  Storage storage,
                  str className,
                  type proxyClass,
                  ):
-        assert issubclass(proxyClass, PUInt), proxyClass
+        assert issubclass(proxyClass, PInt), proxyClass
         PersistentMeta.__init__(ptype, storage, className, proxyClass,
-                                sizeof(unsigned long))
+                                sizeof(long))
 
-cdef class PUInt(AssignedByValue):
+cdef class PInt(AssignedByValue):
 
-    cdef inline unsigned long *getP2IS(self):
-        return <unsigned long *>self.p2InternalStructure
+    cdef inline long *getP2IS(self):
+        return <long *>self.p2InternalStructure
 
     def __str__(self):
         return str(self.getP2IS()[0])
@@ -369,20 +369,20 @@ cdef class PUInt(AssignedByValue):
         def __get__(self):
             return self.getP2IS()[0]
 
-        def __set__(self, unsigned long value):
+        def __set__(self, long value):
             self.getP2IS()[0] = value
 
     # The offset is not OK here: it must match that of the volatile object!
     def __hash__(self, ):
         return hash(self.getP2IS()[0])
 
-    cdef int richcmp(PUInt self, other, int op) except? -123:
-        cdef unsigned long otherValue
-        if isinstance(other, PUInt):
-            otherValue = (<PUInt> other).getP2IS()[0]
+    cdef int richcmp(PInt self, other, int op) except? -123:
+        cdef long otherValue
+        if isinstance(other, PInt):
+            otherValue = (<PInt> other).getP2IS()[0]
         else:
             if isinstance(other, int):
-                otherValue = <unsigned long?>other
+                otherValue = <long?>other
             else:
                 if op==2:
                     return False  # self == other
@@ -421,9 +421,9 @@ cdef class PUInt(AssignedByValue):
     cpdef int testBit(self, int numberOfBit):
         return self.getP2IS()[0] & (1 << numberOfBit)
 
-cdef class UInt(TypeDescriptor):
-    meta = UIntMeta
-    proxyClass = PUInt
+cdef class Int(TypeDescriptor):
+    meta = IntMeta
+    proxyClass = PInt
 
 ############################## Float  ######################################
 
@@ -1446,7 +1446,7 @@ cdef class Storage(MemoryMappedFile):
         self.schema = ModuleType('schema')
         self.typeList = list()
 
-        self.define(UInt)
+        self.define(Int)
         self.define(Float)
         self.define(__String('String'))
         cdef:
@@ -1579,7 +1579,7 @@ cdef class Storage(MemoryMappedFile):
                     'self.createTypes: {self.createTypes}'.format(self=self))
                 if self.createTypes:
                     for ptype in self.typeList:
-                        if ptype.__name__ not in ('String', 'UInt', 'Float', ):
+                        if ptype.__name__ not in ('String', 'Int', 'Float', ):
                             x = ptype.reduce()
 #                             LOG.debug( 'pickle data:'+ repr(x))
                             s = self.stringRegistry.get(dumps(x))

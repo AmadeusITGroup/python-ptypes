@@ -59,20 +59,20 @@ There are various alternatives for the syntax. For example::
         pallocator.register(basetypes)
         
         # register a single non-parametric type under its default name  
-        pallocator.register(UInt)
+        pallocator.register(Int)
         
         # alternative syntax:
-        UInt.typedef(pallocator)
+        Int.typedef(pallocator)
         
         
         # register a single non-parametric type under another name  
-        pallocator.register(UInt('uint'))
+        pallocator.register(Int('uint'))
         
         # alternative syntax:
-        UInt.typedef(pallocator, 'uint')
+        Int.typedef(pallocator, 'uint')
         
         # class syntax:
-        class uint(pallocator, UInt): pass
+        class uint(pallocator, Int): pass
         
         
         # register a parametric type under a name (here the name is mandatory)  
