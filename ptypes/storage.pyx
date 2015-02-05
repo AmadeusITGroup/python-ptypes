@@ -1131,8 +1131,8 @@ cdef class PField(object):
 
 ############################## Storage ######################################
 
-cdef char *ptypesMagic     = "ptypes-0.4.0"       # Maintained by bumpbersion,
-cdef char *ptypesRedoMagic = "redo-ptypes-0.4.0"  # no manual changes please!
+cdef char *ptypesMagic     = "ptypes-0.5.0"       # Maintained by bumpbersion,
+cdef char *ptypesRedoMagic = "redo-ptypes-0.5.0"  # no manual changes please!
 DEF lengthOfMagic = 31
 DEF numMetadata = 2
 DEF PAGESIZE = 4096

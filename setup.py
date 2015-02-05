@@ -49,7 +49,7 @@ with open('README.rst') as f:
 
 setup(
     name='ptypes',
-    version='0.4.0',
+    version='0.5.0',
 
     author=u'Amadeus IT Group',
     author_email='opensource@amadeus.com',
