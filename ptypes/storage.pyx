@@ -1176,7 +1176,7 @@ cdef class MemoryMappedFile(object):
             self.realFileSize = self.numPages * PAGESIZE
             self.fd = os.open(self.fileName, O_CREAT | O_RDWR)
             os.lseek(self.fd, self.realFileSize-1, SEEK_SET)
-            os.write(self.fd, '\x00')
+            os.write(self.fd, b'\x00')
         else:
             LOG.debug(
                 "Opened existing file '{self.fileName}'".format(self=self))

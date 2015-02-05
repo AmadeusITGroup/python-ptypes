@@ -26,7 +26,7 @@ First we import the necessary classes::
       ...             myBuffer = MyBuffer
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
 
-      >>> s = "This is a string."
+      >>> s = b"This is a string."
       >>> p.root.myBuffer = p.schema.Buffer(s)
       >>> p.root.myBuffer                                             #doctest: +ELLIPSIS
       <persistent Buffer object @offset 0x...L>
