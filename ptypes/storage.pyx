@@ -1,11 +1,10 @@
 # cython: profile=False
 
+
 from libc.string cimport memcpy, memcmp, memset
 
 import logging
 LOG = logging.getLogger(__name__)
-
-from cPickle import dumps, loads
 from math import pow, log as logarithm
 from os import SEEK_SET, O_CREAT, O_RDWR
 from types import ModuleType
@@ -14,6 +13,8 @@ from time import strptime, mktime
 import os
 import threading
 import gc
+
+from .compat import pickle
 
 
 cdef class PList
@@ -1490,7 +1491,7 @@ cdef class Storage(MemoryMappedFile):
                                                   .o2PickledTypeList)
                         )
             for s in self.pickledTypeList:
-                t = loads(s.contents)
+                t = pickle.loads(s.contents)
                 if t[0] == '_typedef':
                     className, meta, proxyClass = t[1:4]
                     typeParams = [
@@ -1597,7 +1598,7 @@ cdef class Storage(MemoryMappedFile):
                         if ptype.__name__ not in ('String', 'Int', 'Float', ):
                             x = ptype.reduce()
 #                             LOG.debug( 'pickle data:'+ repr(x))
-                            s = self.stringRegistry.get(dumps(x))
+                            s = self.stringRegistry.get(pickle.dumps(x))
                             self.pickledTypeList.append(s)
                             del s  # do not leave a dangling proxy around
                     LOG.debug("Saved the new schema.")
