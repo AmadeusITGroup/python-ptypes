@@ -3,5 +3,3 @@ recursive-include ptypes *.pyx *.pyxbld *.pxd
 graft doc
 prune doc/_build/doctrees 
 include README.rst
-include versioneer.py
-include ptypes/_version.py

@@ -2,20 +2,6 @@
 
 from setuptools import setup, Extension
 
-# Monkey-patch distutils.command.sdist so that versioneer derives its 
-# command class from setuptools, not distutils
-from setuptools.command.sdist import sdist as setupToolsSdistClass
-import distutils.command.sdist as distutilsSdistModule
-distutilsSdistModule.sdist = setupToolsSdistClass
-# Now we can import verioneer
-import versioneer
-
-versioneer.VCS = 'git'
-versioneer.versionfile_source = 'ptypes/_version.py'
-versioneer.versionfile_build = 'ptypes/_version.py'
-versioneer.tag_prefix = '' # tags are like 1.2.0
-versioneer.parentdir_prefix = 'ptypes-' # dirname like 'myproject-1.2.0'
-
 # Configuration to build Cython extensions
 try:
     from Cython.Build import cythonize
@@ -63,8 +49,7 @@ with open('README.rst') as f:
 
 setup(
     name='ptypes',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version='0.4.0',
 
     author=u'Amadeus IT Group',
     author_email='opensource@amadeus.com',
@@ -102,7 +87,7 @@ setup(
                    # run 'python setup.py develop'
 
                    #'Cython >=0.19.2', 
-                   #'versioneer',
+                   #'bumpversion',
                    #'tox',
                    #'pep8',
                    #'autopep8',
