@@ -4,3 +4,4 @@
 *\.so
 *\.pyc
 /ptypes.egg-info/
+/readme.html

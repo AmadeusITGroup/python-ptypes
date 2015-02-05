@@ -1,3 +1,5 @@
+# coding=utf-8
+
 from setuptools import setup, Extension
 
 # Monkey-patch distutils.command.sdist so that versioneer derives its 
@@ -55,8 +57,8 @@ for moduleName, extraSources in moduleNamesAndExtraSources:
 if hasCython:
     ext_modules = cythonize(ext_modules)
 
-with open('README.rst') as file:
-    long_description = file.read()
+with open('README.rst') as f:
+    long_description = f.read()
 
 
 setup(
@@ -66,10 +68,13 @@ setup(
 
     author=u'Amadeus IT Group',
     author_email='opensource@amadeus.com',
+    maintainer='Dénes Vadász',
+    maintainer_email='dvadasz@amadeus.com',
+
     description='Persistent types: storing objects in memory-mapped files without serializing',
     long_description=long_description,
-    #url = "http://example.com/project/home/page/",
-    #download_url = ,
+    url = "https://github.com/AmadeusITGroup/ptypes",
+    download_url="https://pypi.python.org/pypi/ptypes",
     # license="Apache",
     classifiers=[
         # http://en.wikipedia.org/wiki/Software_release_life_cycle
