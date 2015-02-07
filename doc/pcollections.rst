@@ -23,15 +23,14 @@ and tests are nice if their results are reproducable, we seed the random number 
       
 Now we can start the actual work and create a new storage with a few skip lists.
  
-      >>> from ptypes.storage import Storage, Structure, StructureMeta
+      >>> from ptypes.storage import Storage
       >>> from ptypes.pcollections import SkipList
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         self.define( SkipList('ListOfStrings')[self.schema.String] )
       ...         self.define( SkipList('ListOfFloats')[self.schema.Float] )
       ...         self.define( SkipList('ListOfInts')[self.schema.Int] )
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             sortedStrings= self.schema.ListOfStrings
       ...             sortedFloats= self.schema.ListOfFloats
       ...             sortedInts= self.schema.ListOfInts
@@ -110,15 +109,13 @@ Let's see what happens if we try to insert structures into a skip list:
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         class Agent(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Agent(self.schema.Structure):  
       ...             name = self.schema.String
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...         
       ...         self.define( SkipList('ListOfAgents')[self.schema.Agent] )
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             sortedAgents= self.schema.ListOfAgents
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)   
       >>> p.root.sortedAgents = p.schema.ListOfAgents()
@@ -160,15 +157,13 @@ The snippet becomes part of the type definition of the list and gets saved into 
       ... """
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         class Agent(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Agent(self.schema.Structure):  
       ...             name = self.schema.String
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...         
       ...         self.define( SkipList('ListOfAgents')[self.schema.Agent, sortOrder] )
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             sortedAgents= self.schema.ListOfAgents
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
       Sort order is now being defined.

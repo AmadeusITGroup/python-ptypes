@@ -15,7 +15,7 @@ We will play with a file called ``testfile.mmap``. First we make sure there is n
 Now we can start the actual work and create a new storage for a simple graph.
 First we import the necessary classes:
  
-      >>> from ptypes.storage import Storage, Structure, StructureMeta
+      >>> from ptypes.storage import Storage
       >>> from ptypes.graph import Node, Edge
       
 ``Node`` and ``Edge`` are *type descriptor classes*: in order to be able to associate data 
@@ -37,8 +37,7 @@ and one called ``EdgeOfString`` based on ``Edge``. Instances of both can refer t
       ...     def populateSchema(self):
       ...         NodeOfString = self.define( Node('NodeOfString')[self.schema.String] )
       ...         self.define( Edge('EdgeOfString')[NodeOfString, NodeOfString, self.schema.String, ] )
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             node1 = self.schema.NodeOfString
       ...             node2 = self.schema.NodeOfString
       ...             node3 = self.schema.NodeOfString
@@ -106,14 +105,12 @@ by name. We will use skip lists to implement these.
       ...
       ...     def populateSchema(self):
       ...
-      ...         class Developer(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Developer(self.schema.Structure):  
       ...             id  = self.schema.Int
       ...             name = self.schema.String
       ...             age  = self.schema.Int
       ...
-      ...         class Software(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Software(self.schema.Structure):  
       ...             id  = self.schema.Int
       ...             name = self.schema.String
       ...             lang = self.schema.String
@@ -125,16 +122,14 @@ by name. We will use skip lists to implement these.
       ...         self.define( SkipList('Developers')[self.schema.NDeveloper, sortOrder] )
       ...         self.define( SkipList('Programs')[self.schema.NSoftware, sortOrder] )
       ...
-      ...         class WeightedRelation(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class WeightedRelation(self.schema.Structure):  
       ...             id  = self.schema.Int
       ...             weight = self.schema.Float
       ...
       ...         self.define( Edge('created')[NDeveloper, NSoftware , WeightedRelation] )
       ...         self.define( Edge('knows'  )[NDeveloper, NDeveloper, WeightedRelation] )
       ...
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             devByName = self.schema.NDevelopersByName
       ...             dev = self.schema.Developers
       ...             sw = self.schema.Programs

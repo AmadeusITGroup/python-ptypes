@@ -15,14 +15,13 @@ We will play with a file called ``testfile.mmap``. First we make sure there is n
 Now we can start the actual work and create a new storage for the persistent buffers.
 First we import the necessary classes:
  
-      >>> from ptypes.storage import Storage, Structure, StructureMeta
+      >>> from ptypes.storage import Storage
       >>> from ptypes.buffer import Buffer
       
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         MyBuffer = self.define( Buffer )
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             myBuffer = MyBuffer
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)   
       

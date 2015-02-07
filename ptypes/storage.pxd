@@ -219,9 +219,9 @@ cdef class StructureMeta(PersistentMeta):
 
     cdef addField(StructureMeta ptype, name, PersistentMeta fieldType)
 
-cdef class Structure(AssignedByReference):
-    cdef get(Structure self)
-    cdef set(Structure self, value)
+cdef class PStructure(AssignedByReference):
+    cdef get(PStructure self)
+    cdef set(PStructure self, value)
 
 cdef class PField(object):
     cdef:
@@ -229,8 +229,8 @@ cdef class PField(object):
         readonly PersistentMeta ptype
         readonly str name
 
-        object      set(PField self, Structure owner, value)
-        Persistent  get(PField self, Structure owner)
+        object      set(PField self, PStructure owner, value)
+        Persistent  get(PField self, PStructure owner)
 
 cdef class MemoryMappedFile(object):
     cdef:

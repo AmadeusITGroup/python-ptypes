@@ -962,7 +962,7 @@ threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
 
     def __init__(ptype, className, bases, dict attribute_dict):
-        assert bases==(Structure,), bases  # no base classes supported yet
+#         assert bases==(Structure,), bases  # no base classes supported yet
         cdef Storage storage = getattr(threadLocal, 'currentStorage', None)
         if storage is None:
             raise Exception("Types with {ptype.__class__.__name__} as "
@@ -970,7 +970,7 @@ cdef class StructureMeta(PersistentMeta):
                             "populateSchema() method of Storage subclasses!"
                             .format(ptype=ptype)
                             )
-        PersistentMeta.__init__(ptype, storage, className, Structure, 0)
+        PersistentMeta.__init__(ptype, storage, className, PStructure, 0)
         ptype.fields = list()
         ptype.pfields = dict()
         for fieldName, fieldType in sorted(attribute_dict.items()):
@@ -979,7 +979,7 @@ cdef class StructureMeta(PersistentMeta):
         ptype.NamedTupleClass = namedtuple(className, ptype.pfields.keys())
         LOG.debug('Created {ptype} from meta-class {meta} using proxy '
                   '{proxyClass} allocationSize {allocationSize}'
-                  .format(ptype=ptype, meta=type(ptype), proxyClass=Structure,
+                  .format(ptype=ptype, meta=type(ptype), proxyClass=PStructure,
                           allocationSize=ptype.allocationSize)
                   )
 
@@ -995,16 +995,22 @@ cdef class StructureMeta(PersistentMeta):
     def reduce(ptype):
         d = dict(ptype.__dict__)
         for name in ['__metaclass__', '__dict__', '__weakref__', '__module__',
-                     'storage']:
+                     'storage',]:
             d.pop(name, None)
         for k, v in d.items():
             if isinstance(v, PField):
                 del d[k]
-        return ('StructureMeta', ptype.__name__, ptype.__bases__, d,
-                ptype.fields)
+        bases = list()
+        for base in ptype.__bases__:
+            if type(base) is StructureMeta:
+                base = ('persistentBase', base.__name__)
+            else: 
+                base = ('volatileBase', base)
+            bases.append(base)
+        return ('StructureMeta', ptype.__name__, bases, d, ptype.fields)
 
 
-cdef class Structure(AssignedByReference):
+cdef class PStructure(AssignedByReference):
     """ A structure is like a mutable named tuple.
 
         Structures are usable as hash keys (they are hashable), but prepare
@@ -1023,7 +1029,7 @@ cdef class Structure(AssignedByReference):
         contents of the structure to the assigned value,
         which must have at least the attributes the structure has fields.
     """
-    def __init__(Structure self, value=None, **kwargs):
+    def __init__(PStructure self, value=None, **kwargs):
         cdef PField pfield
         for pfield in (<StructureMeta>self.ptype).pfields.values():
             pfield.ptype.clear(self.offset + pfield.offset)
@@ -1036,7 +1042,7 @@ cdef class Structure(AssignedByReference):
     def __hash__(self, ):
         return hash(self.get())
 
-    cdef int richcmp(Structure self, other, int op) except? -123:
+    cdef int richcmp(PStructure self, other, int op) except? -123:
         cdef:
             Persistent value
             PField pfield
@@ -1067,7 +1073,7 @@ cdef class Structure(AssignedByReference):
             return doesDiffer
         raise TypeError('{0} does not define a sort order!'.format(self.ptype))
 
-    cdef get(Structure self):
+    cdef get(PStructure self):
         cdef:
             PField  pfield
             dict    pfields = (<StructureMeta>self.ptype).pfields
@@ -1079,7 +1085,7 @@ cdef class Structure(AssignedByReference):
             values.append(pfield.get(self))
         return NamedTupleClass(*values)
 
-    cdef set(Structure self, value):
+    cdef set(PStructure self, value):
         cdef:
             PField  pfield
             dict    pfields = (<StructureMeta>self.ptype).pfields
@@ -1087,10 +1093,10 @@ cdef class Structure(AssignedByReference):
             pfield.set(self, getattr(value, pfield.name))
 
     property contents:
-        def __get__(Structure self):
+        def __get__(PStructure self):
             return self.get()
 
-        def __set__(Structure self, value):
+        def __set__(PStructure self, value):
             self.set(value)
 
 cdef class PField(object):
@@ -1108,23 +1114,23 @@ cdef class PField(object):
         def __get__(PField self):
             return self.ptype.assignmentSize
 
-    def __get__(PField self, Structure owner, ownerClass):
+    def __get__(PField self, PStructure owner, ownerClass):
         if owner is None:
             return self
         else:
             return self.get(owner)
 
-    cdef Persistent get(PField self, Structure owner):
+    cdef Persistent get(PField self, PStructure owner):
         assert owner is not None
         assert owner.storage is self.ptype.storage, (
             owner.storage, self.ptype.storage)
 #         LOG.debug( str(('getting', hex(owner.offset), self.offset)) )
         return self.ptype.resolveAndCreateProxy(owner.offset + self.offset)
 
-    def __set__(PField self, Structure owner, value):
+    def __set__(PField self, PStructure owner, value):
         self.set(owner, value)
 
-    cdef set(PField self, Structure owner, value):
+    cdef set(PField self, PStructure owner, value):
         assert owner is not None
 #         LOG.debug( str(('setting', hex(owner.offset), self.offset, value)) )
         self.ptype.assign(owner.p2InternalStructure + self.offset, value)
@@ -1473,6 +1479,7 @@ cdef class Storage(MemoryMappedFile):
             self.p2FileHeader.o2PickledTypeList = self.pickledTypeList.offset
             try:
                 threadLocal.currentStorage = self
+                StructureMeta('Structure', (PStructure,), dict())
                 self.populateSchema()
             finally:
                 threadLocal.currentStorage = None
@@ -1496,13 +1503,21 @@ cdef class Storage(MemoryMappedFile):
                     meta._typedef(self, className, proxyClass, *typeParams)
                 elif t[0] == 'StructureMeta':
                     className, bases, attributeDict = t[1:4]
-                    attributeDict['__metaclass__'] = StructureMeta
+                    base2  = list()
+                    for base in bases:
+                        baseKind, baseX = base
+                        if baseKind == 'persistentBase':
+                            base = getattr(self.schema, baseX)
+                        else:
+                            assert baseKind == 'volatileBase', baseKind
+                            base = baseX
+                        base2.append(base)
                     for fieldName, fieldTypeName in t[4]:
                         attributeDict[fieldName] = getattr(
                             self.schema, fieldTypeName)
                     try:
                         threadLocal.currentStorage = self
-                        StructureMeta(className, bases, attributeDict)
+                        StructureMeta(className, tuple(base2), attributeDict)
                     finally:
                         threadLocal.currentStorage = None
                 else:

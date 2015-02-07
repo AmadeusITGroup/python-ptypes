@@ -1,4 +1,4 @@
-from .storage cimport Structure, PField
+from .storage cimport PStructure, PField
 
 cdef class Variable(object):
     cdef:
@@ -37,7 +37,7 @@ cdef class QueryContext(object):
         inline getattr(self, name):
             return self.dick[name]
 
-        set(self, Structure group, Structure aggregate)
+        set(self, PStructure group, PStructure aggregate)
 
     cpdef begin(self)
     cdef do(self)

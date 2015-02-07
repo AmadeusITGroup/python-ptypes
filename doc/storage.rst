@@ -12,24 +12,29 @@ We will play with a file called ``testfile.mmap``. First we make sure there is n
 
 Now we can start the actual work and create a new storage with a very simple structure.
 First we import the necessary classes:
- 
-   >>> from ptypes.storage import Storage, Structure, StructureMeta
-   >>> ptype= StructureMeta.__new__(StructureMeta, 'aaa', (object,), dict() )
+
+   >>> from ptypes.storage import Storage
 
 The ``Storage`` class represents a persistent data store. To make it actually usable, we have to 
 subclass it and override its ``populateSchema()`` callback method with code defining the structure
 of our persistent store.
 
-The structure is defined by creating a class 
+The structure is defined in the ``populateSchema()`` method by creating a 
+class 
 
  * called ``Root`` 
- * subclassed from ``Structure``
- * having metaclass ``StructureMeta`` 
+ * subclassed from ``self.schema.Structure`` (where ``self`` is the sole 
+parameter of ``populateSchema()``)
+ 
+``self.schema.Structure`` comes with a metaclass (``storage.StructureMeta``), 
+which takes care of binding the persistent class to the ``Storage`` instance. 
+This way there is no need to pass the ``Storage`` instance to the constructor 
+when creating persistent instances. 
  
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
+      ...             pass
 
 Now we are ready to create our first persistent storage object.
 The ``populateSchema()`` callback will be invoked automatically if and when the schema of a new storage
@@ -58,7 +63,7 @@ representing the *schema* of the storage.
       >>> p.schema
       <module 'schema' (built-in)>
       >>> sorted(dir(p.schema))
-      ['Float', 'Int', 'Root', 'String', '__doc__', '__name__']
+      ['Float', 'Int', 'Root', 'String', 'Structure', '__doc__', '__name__']
 
 It is essential that before we lose the reference to a storage object we ``close()`` it, 
 otherwise the underlying file remains open (occupying disk space even if deleted) and 
@@ -71,8 +76,7 @@ Now here is an improved version of our storage, this time with the structure hav
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         print 'Creating an improved schema...'
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             name = self.schema.String
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
@@ -213,8 +217,7 @@ which will actually create the new persistent type. Let's see this through an ex
       ...         
       ...     def populateSchema(self):
       ...         
-      ...         class Agent(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Agent(self.schema.Structure):  
       ...             name = self.schema.String
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
@@ -222,8 +225,7 @@ which will actually create the new persistent type. Let's see this through an ex
       ...         self.define( List('ListOfAgents')[Agent] )         
       ...         self.define( Dict('AgentsByName')[self.schema.String, Agent] )         
       ...         
-      ...         class Root(Structure):
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):
       ...             agents = self.schema.ListOfAgents
       ...             agentsByName = self.schema.AgentsByName
       
@@ -236,7 +238,7 @@ Before we access the persistent list or dict, we need to create them:
       
 Now we can store at least 13 agents by their names and ages (the actual limits may be higher).
 Note that while the root object was created automatically on the first access to ``p.root``,
-all other Structure instances have to be created explicitly. Specifying keyword arguments
+all other ``Structure`` instances have to be created explicitly. Specifying keyword arguments
 as constructor parameters allows for the immediate initialization of the fields of the structure. 
 
       >>> for agentName, age in (("Felix Leiter", 31), ("Miss Moneypenny", 23), ("Bill Tanner",57)): 
@@ -324,8 +326,7 @@ with types assigned by value:
       ...         self.define( List('ListOfInts' )[self.schema.Int ] )         
       ...         self.define( List('ListOfFloats')[self.schema.Float] )         
       ...         
-      ...         class Root(Structure):
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):
       ...             uints = self.schema.ListOfInts      
       ...             floats = self.schema.ListOfFloats      
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)      #doctest: +ELLIPSIS
@@ -350,8 +351,7 @@ with types assigned by value:
       ...     def populateSchema(self):
       ...         self.define( Dict('MyType')[self.schema.Int, self.schema.String] )         
       ...         
-      ...         class Root(Structure):
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):
       ...             myType = self.schema.MyType      
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)      #doctest: +ELLIPSIS  +REPORT_NDIFF
       >>> os.unlink(mmapFileName)
@@ -361,8 +361,8 @@ If you pass in the wrong number of type arguments to a type descriptor, you will
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         self.define( Dict('BadType')[1, 2, 3] )         
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
+      ...             pass
       >>> p = MyStorage(mmapFileName, 1, 32)                                  #doctest: +ELLIPSIS
       Traceback (most recent call last):
          ...
@@ -372,8 +372,8 @@ If you pass in the wrong number of type arguments to a type descriptor, you will
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         self.define( Dict('BadType')[None, None] )         
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
+      ...             pass
       >>> p = MyStorage(mmapFileName, 1, 32) #doctest: +ELLIPSIS
       Traceback (most recent call last):
          ...
@@ -390,8 +390,7 @@ so you can use it in subsequent type definitions.
       ...     def populateSchema(self):
       ...         stringSet1 = self.define( Dict('ThisIsInFactASet')[self.schema.String, None] )         
       ...         stringSet2 = self.define( Set ('ThisIsAnotherSet')[self.schema.String] )         
-      ...         class Root(Structure):  
-      ...             __metaclass__ = StructureMeta
+      ...         class Root(self.schema.Structure):  
       ...             strings1 = stringSet1 
       ...             strings2 = stringSet2 
       >>> p = MyStorage(mmapFileName, 1, 32)                      

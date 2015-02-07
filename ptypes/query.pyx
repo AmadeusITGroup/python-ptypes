@@ -3,7 +3,7 @@
 from .storage cimport Persistent, Storage
 from .storage cimport HashTableMeta, PDefaultHashTable, DefaultDict
 from .storage cimport HashEntryMeta, PHashEntry
-from .storage cimport StructureMeta, Structure, PField
+from .storage cimport StructureMeta, PStructure, PField
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ cdef class PConTable(PDefaultHashTable):
     def __init__(PDefaultHashTable self, unsigned long size):
         PDefaultHashTable.__init__(self, size, )
 
-    cpdef Structure getAggregate(self, dict dick):
+    cpdef PStructure getAggregate(self, dict dick):
 
         cdef:
             PField      keyField
@@ -42,7 +42,7 @@ cdef class PConTable(PDefaultHashTable):
 
     def rollup(self):
         cdef:
-            Structure   group, aggregate, totalAggregate
+            PStructure   group, aggregate, totalAggregate
             PField      keyField, aggregateField
             StructureMeta groupClass     = self.hashEntryClass.keyClass
             StructureMeta aggregateClass = self.hashEntryClass.valueClass
@@ -79,7 +79,7 @@ cdef class PConTable(PDefaultHashTable):
         cdef:
             StructureMeta groupClass     = self.hashEntryClass.keyClass
             StructureMeta aggregateClass = self.hashEntryClass.valueClass
-            Structure   key, value
+            PStructure   key, value
             PField      keyField
             PField      aggregateField   = getattr(aggregateClass,
                                                    aggregateName)
@@ -476,7 +476,7 @@ cdef class QueryContext(object):
     def __getattr__(self, name):
         return self.getattr(name)
 
-    cdef set(self, Structure group, Structure aggregate):
+    cdef set(self, PStructure group, PStructure aggregate):
         cdef Aggregator aggregator
         cdef BindingRule keyBindingRule
         for aggregator in self.query.aggregators:
@@ -511,7 +511,7 @@ cdef class AggregatingQueryContext(QueryContext):
 
     cdef do(self):
         cdef:
-            Structure aggregate = \
+            PStructure aggregate = \
                 self.contingencyTable.getAggregate(self.dick)
             Aggregator aggregator
 
@@ -541,18 +541,18 @@ cdef class Aggregator(Variable):
     def reset(self, result):
         result.dick[self.name] = self.accumulatorClass()
 
-    cdef aggregate(self, Structure aggregate,
+    cdef aggregate(self, PStructure aggregate,
                    AggregatingQueryContext aggregatingQueryContext
                    ):
         return self.doAggregate(aggregate, aggregatingQueryContext)
 
-    cdef doAggregate(self, Structure aggregate,
+    cdef doAggregate(self, PStructure aggregate,
                      AggregatingQueryContext aggregatingQueryContext
                      ):
         raise NotImplementedError
 
 # cdef class Distinct(object):
-#     cdef aggregate(self, Structure aggregate,
+#     cdef aggregate(self, PStructure aggregate,
 #                     AggregatingQueryContext aggregatingQueryContext):
 #         rolledUpQueryContextState = aggregate.saveState()
 #         rollingQueryContextState = tuple(getattr(aggregatingQueryContext,
@@ -566,7 +566,7 @@ cdef class Aggregator(Variable):
 # class Unique(Aggregator):
 #     accumulatorClass = set
 #
-#     cdef doAggregate(self, Structure aggregate,
+#     cdef doAggregate(self, PStructure aggregate,
 #                     AggregatingQueryContext aggregatingQueryContext):
 #         value = tuple(getattr(aggregatingQueryContext,
 #                     (<BindingRule>bindingRule).name)
@@ -580,7 +580,7 @@ cdef class AggregatorOf1(Aggregator):
 cdef class Count(AggregatorOf1):
     accumulatorClass = int
 
-    cdef doAggregate(self, Structure aggregate,
+    cdef doAggregate(self, PStructure aggregate,
                      AggregatingQueryContext aggregatingQueryContext
                      ):
         # XXX .inc is dynamically resolved
@@ -591,7 +591,7 @@ cdef class Count(AggregatorOf1):
 cdef class Sum(AggregatorOf1):
     accumulatorClass = int
 
-    cdef doAggregate(self, Structure aggregate,
+    cdef doAggregate(self, PStructure aggregate,
                      AggregatingQueryContext aggregatingQueryContext
                      ):
         self.bindingRule.aggregateField.get(aggregate)\
@@ -638,7 +638,7 @@ class QueryMeta(type):
             for bindingRule in GroupBy:
                 assert isinstance(bindingRule, BindingRule), bindingRule
                 attributes[bindingRule.name] = output2.schema.String
-            GroupClass = StructureMeta('Group', (Structure,), attributes)
+            GroupClass = StructureMeta('Group', (PStructure,), attributes)
             for bindingRule in GroupBy:
                 bindingRule.keyField =\
                     <PField?> getattr(GroupClass, bindingRule.name)
@@ -648,7 +648,7 @@ class QueryMeta(type):
                               )
             for aggregator in aggregators:
                 attributes[aggregator.name] = output2.schema.Int
-            AggregateClass = StructureMeta('Aggregate', (Structure,),
+            AggregateClass = StructureMeta('Aggregate', (PStructure,),
                                            attributes)
             for aggregator in aggregators:
                 aggregator.aggregateField =\
