@@ -2,7 +2,7 @@
 Ptypes through examples
 =======================
 
-In the following sections you will find examples of how ``ptypes`` can be 
+In the following sections you will find examples of how ``ptypes`` can be
 used in your Python code.
 
 .. toctree::
