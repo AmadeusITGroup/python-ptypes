@@ -60,7 +60,7 @@ setup(
     long_description=long_description,
     url = "https://github.com/AmadeusITGroup/ptypes",
     download_url="https://pypi.python.org/pypi/ptypes",
-    # license="Apache",
+    license="Apache",
     classifiers=[
         # http://en.wikipedia.org/wiki/Software_release_life_cycle
         'Development Status :: 3 - Alpha',
@@ -70,8 +70,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Scientific/Engineering',
         'Topic :: Database',
-#         # Pick your license as you wish (should match "license" above)
-#          'License :: OSI Approved :: Apache Software License',
+        'License :: OSI Approved :: Apache Software License',
         'Operating System :: POSIX',
         'Programming Language :: Cython'
         'Programming Language :: C'
