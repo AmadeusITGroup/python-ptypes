@@ -29,7 +29,7 @@ First we import the necessary classes::
       >>> s = b"This is a string."
       >>> p.root.myBuffer = p.schema.Buffer(s)
       >>> p.root.myBuffer                                             #doctest: +ELLIPSIS
-      <persistent Buffer object @offset 0x...L>
+      <persistent Buffer object @offset 0x...>
 
       >>> m = memoryview(s)
       >>> m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides

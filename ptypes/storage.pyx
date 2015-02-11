@@ -998,7 +998,8 @@ cdef class StructureMeta(PersistentMeta):
         for name in ['__metaclass__', '__dict__', '__weakref__', '__module__',
                      'storage',]:
             d.pop(name, None)
-        for k, v in d.items():
+        # force the list, as we can't modify the dict while iterating over it
+        for k, v in list(d.items()):
             if isinstance(v, PField):
                 del d[k]
         bases = list()

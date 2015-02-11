@@ -59,7 +59,7 @@ storage can hold.  Upon the first access to the ``root`` attribute of the
 storage an instance of the ``Root`` class is created and returned::
 
       >>> p.root                                             #doctest: +ELLIPSIS
-      <persistent Root object @offset 0x...L>
+      <persistent Root object @offset 0x...>
 
 So far so good, but our storage is not very useful as it cannot hold any data:
 the root object has no attributes.
@@ -69,9 +69,9 @@ persistent types are accessible as attributes on the module object representing
 the *schema* of the storage::
 
       >>> p.schema
-      <module 'schema' (built-in)>
-      >>> sorted(dir(p.schema))
-      ['Float', 'Int', 'Root', 'String', 'Structure', '__doc__', '__name__']
+      <module 'schema'...>
+      >>> [x for x in dir(p.schema) if not x.startswith('__')]
+      ['Float', 'Int', 'Root', 'String', 'Structure']
 
 It is essential that before we lose the reference to a storage object we
 :meth:`~ptypes.storage.Storage.close()` it, otherwise the underlying file
@@ -85,7 +85,7 @@ having some useful fields::
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         print 'Creating an improved schema...'
+      ...         print('Creating an improved schema...')
       ...         class Root(self.schema.Structure):
       ...             name = self.schema.String
       ...             age = self.schema.Int
@@ -272,7 +272,7 @@ the immediate initialization of the fields of the structure::
       ...     p.root.agents.append(agent)
       ...     p.root.agentsByName[agent.name] = agent
       >>> for agent in p.root.agents:
-      ...     print agent.name
+      ...     print(agent.name)
       Felix Leiter
       Miss Moneypenny
       Bill Tanner
@@ -286,13 +286,13 @@ The persistent Dicts support :meth:`~ptypes.storage.Dict.iteritems()`,
 :meth:`~ptypes.storage.Dict.iterkeys()` and :meth:`~ptypes.storage.Dict.itervalues()`::
 
       >>> for key, value in p.root.agentsByName.iteritems():
-      ...     print key, value                                    #doctest: +ELLIPSIS
+      ...     print("{} {}".format(key, value))                           #doctest: +ELLIPSIS
       Felix Leiter <persistent Agent object @offset 0x...>
       Bill Tanner <persistent Agent object @offset 0x...>
       Miss Moneypenny <persistent Agent object @offset 0x...>
-      >>> print [key.contents for key in p.root.agentsByName.iterkeys()]
+      >>> print([key.contents for key in p.root.agentsByName.iterkeys()])
       ['Felix Leiter', 'Bill Tanner', 'Miss Moneypenny']
-      >>> print [agent.name.contents for agent in p.root.agentsByName.itervalues()]
+      >>> print([agent.name.contents for agent in p.root.agentsByName.itervalues()])
       ['Felix Leiter', 'Bill Tanner', 'Miss Moneypenny']
 
 For persistent sets only :meth:`~ptypes.storage.Set.iterkeys()` is supported::
@@ -312,8 +312,10 @@ constructor argument::
 
       >>> p.root.agentsByName["Miss Moneypenny"].weight = 57.3                #doctest: +ELLIPSIS
       >>> for agent in p.root.agents:
-      ...     print agent.weight.contents,
-      0.0 57.3 0.0
+      ...     print(agent.weight.contents)
+      0.0
+      57.3
+      0.0
 
 Now let's finish with this storage and create a new one to demonstrate how Dict
 and List work with types assigned by value::
@@ -370,11 +372,29 @@ descriptors work just as well with types assigned by value::
       ...    p.root.uints.append(i)
       ...    p.root.floats.append(random())
       >>> for i in p.root.uints:
-      ...      print i.contents,
-      0 1 2 3 4 5 6 7 8 9
+      ...      print(i.contents)
+      0
+      1
+      2
+      3
+      4
+      5
+      6
+      7
+      8
+      9
       >>> for f in p.root.floats:
-      ...      print f.contents,
-      0.259008491715 0.685257992965 0.684081918016 0.84933616139 0.185724173874 0.230558608965 0.147159918168 0.225162935562 0.734023602213 0.13021302276
+      ...      print(f.contents)
+      0.259008491715
+      0.685257992965
+      0.684081918016
+      0.84933616139
+      0.185724173874
+      0.230558608965
+      0.147159918168
+      0.225162935562
+      0.734023602213
+      0.13021302276
       >>> del i, f
       >>> p.close()
       >>> os.unlink(mmapFileName)

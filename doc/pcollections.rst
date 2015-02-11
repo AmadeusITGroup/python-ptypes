@@ -50,9 +50,9 @@ Let's instantiate those lists!::
 
 Right now they are empty::
 
-      >>> for x in p.root.sortedStrings: print x
-      >>> for x in p.root.sortedFloats : print x
-      >>> for x in p.root.sortedInts   : print x
+      >>> for x in p.root.sortedStrings: print(x)
+      >>> for x in p.root.sortedFloats : print(x)
+      >>> for x in p.root.sortedInts   : print(x)
 
 So let's populate the lists::
 
@@ -150,7 +150,7 @@ The snippet becomes part of the type definition of the list and gets saved into 
 
       >>> sortOrder = """
       ... # Demonstrate when this snippet is executed (ommit this in real world scenarios)
-      ... print "Sort order is now being defined."
+      ... print("Sort order is now being defined.")
       ...
       ... # This is the essential part. You have to define 'getKeyFromValue' and/or 'compare':
       ... from operator import attrgetter
@@ -159,7 +159,7 @@ The snippet becomes part of the type definition of the list and gets saved into 
       ... def compare(x, y):
       ...     # demonstrate when we compare stuff by printing x & y
       ...     rv = cmp(x, y)
-      ...     print "Comparing {0} and {1}: {2}".format(repr(x), repr(y), rv)
+      ...     print("Comparing {0} and {1}: {2}".format(repr(x), repr(y), rv))
       ...     return rv
       ... """
       >>> class MyStorage(Storage):
@@ -180,7 +180,7 @@ The snippet becomes part of the type definition of the list and gets saved into 
       ...     p.root.sortedAgents.insert(agent)
       Comparing ...
       >>> for agent in p.root.sortedAgents:
-      ...     print agent.name
+      ...     print(agent.name)
       Miss Moneypenny
       Felix Leiter
       Bill Tanner
@@ -195,7 +195,7 @@ The next time we open the storage, the snippet is again executed::
       >>> p.root.sortedAgents.insert(agent)                                       #doctest: +ELLIPSIS
       Comparing ...
       >>> for agent in p.root.sortedAgents:
-      ...     print agent.name
+      ...     print(agent.name)
       Miss Moneypenny
       Felix Leiter
       Bill Tanner
