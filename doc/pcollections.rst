@@ -32,11 +32,11 @@ Now we can start the actual work and create a new storage with a few skip lists.
       >>> from ptypes.pcollections import SkipList
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         self.define( SkipList('ListOfStrings')[self.schema.String] )
+      ...         self.define( SkipList('ListOfByteStrings')[self.schema.ByteString] )
       ...         self.define( SkipList('ListOfFloats')[self.schema.Float] )
       ...         self.define( SkipList('ListOfInts')[self.schema.Int] )
       ...         class Root(self.schema.Structure):
-      ...             sortedStrings= self.schema.ListOfStrings
+      ...             sortedByteStrings= self.schema.ListOfByteStrings
       ...             sortedFloats= self.schema.ListOfFloats
       ...             sortedInts= self.schema.ListOfInts
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
@@ -44,13 +44,13 @@ Now we can start the actual work and create a new storage with a few skip lists.
 We have created a new storage with a schema defining some persistent skip lists.
 Let's instantiate those lists!::
 
-      >>> p.root.sortedStrings = p.schema.ListOfStrings()
+      >>> p.root.sortedByteStrings = p.schema.ListOfByteStrings()
       >>> p.root.sortedFloats = p.schema.ListOfFloats()
       >>> p.root.sortedInts = p.schema.ListOfInts()
 
 Right now they are empty::
 
-      >>> for x in p.root.sortedStrings: print(x)
+      >>> for x in p.root.sortedByteStrings: print(x)
       >>> for x in p.root.sortedFloats : print(x)
       >>> for x in p.root.sortedInts   : print(x)
 
@@ -59,13 +59,13 @@ So let's populate the lists::
       >>> from random import random
       >>> text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."
       >>> for word in text.split():
-      ...     p.root.sortedStrings.insert(word)
+      ...     p.root.sortedByteStrings.insert(word)
       ...     p.root.sortedInts.insert(len(word))
       ...     p.root.sortedFloats.insert(random())
 
 We can examine what data we entered into them::
 
-      >>> ' '.join( str(word) for word in p.root.sortedStrings)
+      >>> ' '.join( str(word) for word in p.root.sortedByteStrings)
       'At At Lorem Lorem Lorem Lorem Stet Stet accusam accusam aliquyam aliquyam amet, amet, amet. amet. clita clita consetetur consetetur diam diam diam diam dolor dolor dolor dolor dolore dolore dolores dolores duo duo ea ea eirmod eirmod elitr, elitr, eos eos erat, erat, est est et et et et et et et et gubergren, gubergren, invidunt invidunt ipsum ipsum ipsum ipsum justo justo kasd kasd labore labore magna magna no no nonumy nonumy rebum. rebum. sadipscing sadipscing sanctus sanctus sea sea sed sed sed sed sit sit sit sit takimata takimata tempor tempor ut ut vero vero voluptua. voluptua.'
       >>> [x.contents for x in p.root.sortedInts]
       [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 9, 9, 10, 10, 10, 10, 10, 10]
@@ -91,14 +91,14 @@ Now let's start at 0.5 and iterate to the end::
 If we reopen the storage, we still have the same data in it::
 
       >>> p = Storage(mmapFileName, fileSize=1, stringRegistrySize=32)
-      >>> ' '.join( str(word) for word in p.root.sortedStrings)
+      >>> ' '.join( str(word) for word in p.root.sortedByteStrings)
       'At At Lorem Lorem Lorem Lorem Stet Stet accusam accusam aliquyam aliquyam amet, amet, amet. amet. clita clita consetetur consetetur diam diam diam diam dolor dolor dolor dolor dolore dolore dolores dolores duo duo ea ea eirmod eirmod elitr, elitr, eos eos erat, erat, est est et et et et et et et et gubergren, gubergren, invidunt invidunt ipsum ipsum ipsum ipsum justo justo kasd kasd labore labore magna magna no no nonumy nonumy rebum. rebum. sadipscing sadipscing sanctus sanctus sea sea sed sed sed sed sit sit sit sit takimata takimata tempor tempor ut ut vero vero voluptua. voluptua.'
 
 It is possible to retrieve individual values from the list::
 
-      >>> p.root.sortedStrings["Lorem"]                                       #doctest: +ELLIPSIS
-      <persistent String object 'Lorem' @offset 0x...L>
-      >>> p.root.sortedStrings["Balmoral"]                                       #doctest: +ELLIPSIS
+      >>> p.root.sortedByteStrings["Lorem"]                                       #doctest: +ELLIPSIS
+      <persistent ByteString object 'Lorem' @offset 0x...L>
+      >>> p.root.sortedByteStrings["Balmoral"]                                       #doctest: +ELLIPSIS
       Traceback (most recent call last):
       ...
       KeyError: 'Balmoral'
@@ -118,7 +118,7 @@ Let's see what happens if we try to insert structures into a skip list::
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         class Agent(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...
@@ -165,7 +165,7 @@ The snippet becomes part of the type definition of the list and gets saved into 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         class Agent(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...

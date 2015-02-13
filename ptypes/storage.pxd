@@ -93,7 +93,7 @@ cdef class Int(TypeDescriptor):
     pass
 cdef class Float(TypeDescriptor):
     pass
-cdef class __String(TypeDescriptor):
+cdef class __ByteString(TypeDescriptor):
     pass
 cdef class Set(TypeDescriptor):
     pass
@@ -181,14 +181,14 @@ cdef class PHashTable(AssignedByReference):
 cdef class PDefaultHashTable(PHashTable):
     pass
 
-cdef class PString(AssignedByReference):
+cdef class PByteString(AssignedByReference):
     cdef inline char *getCharPtr(self):
         return <char*>self.p2InternalStructure+sizeof(int)
 
     cdef inline int   getSize(self):
         return (<int*>self.p2InternalStructure)[0]
 
-    cdef inline bytes getString(self):
+    cdef inline bytes getByteString(self):
         return self.getCharPtr()[:self.getSize()]
 
 cdef struct CList:
@@ -260,7 +260,7 @@ cdef struct CDbFileHeader:
     unsigned long revision
     unsigned long lastAppliedRedoFileNumber
     Offset o2lastAppliedTrx
-    Offset freeOffset, o2StringRegistry, o2PickledTypeList, o2Root
+    Offset freeOffset, o2ByteStringRegistry, o2PickledTypeList, o2Root
 
 cdef class Storage(MemoryMappedFile):
     cdef:

@@ -21,7 +21,6 @@ To make it actually usable, we have to subclass it and override its
 :meth:`~ptypes.storage.Storage.populateSchema()` callback method with code
 defining the structure of our persistent store.
 
-<<<<<<< HEAD
 The structure is defined in the
 :meth:`~ptypes.storage.Storage.populateSchema()` method by creating a class
 
@@ -58,7 +57,7 @@ The ``stringRegistrySize`` parameter is the number of interned strings the
 storage can hold.  Upon the first access to the ``root`` attribute of the
 storage an instance of the ``Root`` class is created and returned::
 
-      >>> p.root                                             #doctest: +ELLIPSIS
+      >>> p.root                                           #doctest: +ELLIPSIS
       <persistent Root object @offset 0x...>
 
 So far so good, but our storage is not very useful as it cannot hold any data:
@@ -71,7 +70,7 @@ the *schema* of the storage::
       >>> p.schema
       <module 'schema'...>
       >>> [x for x in dir(p.schema) if not x.startswith('__')]
-      ['Float', 'Int', 'Root', 'String', 'Structure']
+      ['ByteString', 'Float', 'Int', 'Root', 'Structure']
 
 It is essential that before we lose the reference to a storage object we
 :meth:`~ptypes.storage.Storage.close()` it, otherwise the underlying file
@@ -87,14 +86,14 @@ having some useful fields::
       ...     def populateSchema(self):
       ...         print('Creating an improved schema...')
       ...         class Root(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
 
-Oops, we expected a message ``Creating an improved schema...``, why didn't we get it?
-Because the file under the storage has already been created and properly
-initialized (with the useless version of ``Root``.)
+Oops, we expected a message ``Creating an improved schema...``, why didn't we
+get it? Because the file under the storage has already been created and
+properly initialized (with the useless version of ``Root``.)
 The :meth:`~ptypes.storage.Storage.populateSchema()` method is only called once
 on a file.
 On subsequent attachment attempts the schema is read back from the storage.
@@ -132,7 +131,6 @@ To get the original Python integer back, you have to access the
       >>> p.root.weight, p.root.weight.contents                       #doctest: +ELLIPSIS
       (<persistent Float object '73.1415926' @offset 0x...>, 73.1415926)
 
-*... and a year later James put on some weight ;-)* ::
 
       >>> p.root.age.inc()
       >>> p.root.weight.add(31.45)
@@ -164,7 +162,7 @@ The assignment to a field will convert a Python string implicitly to a persisten
 
       >>> p.root.name = 'James Bond'
       >>> p.root.name                                                 #doctest: +ELLIPSIS
-      <persistent String object 'James Bond' @offset 0x...>
+      <persistent ByteString object 'James Bond' @offset 0x...>
 
 We got back the persistent string; if we want it as a Python string object, we
 access its :attr:`~ptypes.storage.Structure.`contents` attribute::
@@ -178,14 +176,14 @@ Or alternatively::
       'James Bond'
 
 The assignment of the Python string  works because the constructor of
-``p.schema.String`` accepts a Python string as its single argument.
+``p.schema.ByteString`` accepts a Python string as its single argument.
 Note however, that this solution leaks persistent storage space, as each time
 the Python string ``'James Bond'`` is  assigned,
 a new persistent string is allocated, storing the same sequence of characters::
 
-      >>> p.root.name.isSameAs(p.schema.String('James Bond'))
+      >>> p.root.name.isSameAs(p.schema.ByteString('James Bond'))
       False
-      >>> p.root.name == p.schema.String('James Bond')
+      >>> p.root.name == p.schema.ByteString('James Bond')
       True
 
 To remedy this, the recommended way of interning strings is via the *string
@@ -205,9 +203,9 @@ Although the proxy objects are not the same::
 
 This is just like with the Python strings::
 
-      >>> p.root.name.contents == p.schema.String('James Bond').contents
+      >>> p.root.name.contents == p.schema.ByteString('James Bond').contents
       True
-      >>> p.root.name.contents is p.schema.String('James Bond').contents
+      >>> p.root.name.contents is p.schema.ByteString('James Bond').contents
       False
 
 From an already existing file a storage can be created without specifying the
@@ -242,12 +240,12 @@ which will actually create the new persistent type. Let's see this through an ex
       ...     def populateSchema(self):
       ...
       ...         class Agent(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...
       ...         self.define(List('ListOfAgents')[Agent])
-      ...         self.define(Dict('AgentsByName')[self.schema.String, Agent])
+      ...         self.define(Dict('AgentsByName')[self.schema.ByteString, Agent])
       ...
       ...         class Root(self.schema.Structure):
       ...             agents = self.schema.ListOfAgents
@@ -323,7 +321,7 @@ and List work with types assigned by value::
       >>> p.close()                                                             #doctest: +ELLIPSIS
       Traceback (most recent call last):
       ...
-      ValueError: Cannot close <MyStorage '...'> - some proxies are still around: <persistent Agent object @offset 0x...L> <persistent String object 'Miss Moneypenny' @offset 0x...L> <persistent Agent object @offset 0x...L>
+      ValueError: Cannot close <MyStorage '...'> - some proxies are still around: <persistent Agent object @offset 0x...L> <persistent ByteString object 'Miss Moneypenny' @offset 0x...L> <persistent Agent object @offset 0x...L>
 
 Ooops... Indeed, the ``key``, ``value`` and ``agent`` references from the
 previous examples are still around, and if we closed the storage (which unmaps
@@ -401,7 +399,7 @@ descriptors work just as well with types assigned by value::
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         self.define(Dict('MyType')[self.schema.Int, self.schema.String])
+      ...         self.define(Dict('MyType')[self.schema.Int, self.schema.ByteString])
       ...
       ...         class Root(self.schema.Structure):
       ...             myType = self.schema.MyType
@@ -443,8 +441,8 @@ definitions::
       >>> from ptypes.storage import Set
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         stringSet1 = self.define(Dict('ThisIsInFactASet')[self.schema.String, None])
-      ...         stringSet2 = self.define(Set('ThisIsAnotherSet')[self.schema.String])
+      ...         stringSet1 = self.define(Dict('ThisIsInFactASet')[self.schema.ByteString, None])
+      ...         stringSet2 = self.define(Set('ThisIsAnotherSet')[self.schema.ByteString])
       ...         class Root(self.schema.Structure):
       ...             strings1 = stringSet1
       ...             strings2 = stringSet2
@@ -452,7 +450,7 @@ definitions::
       >>> p.root.strings1 = p.schema.ThisIsInFactASet(13)
       >>> s1 = p.root.strings1.get('abc\x00def')
       >>> s1                                                        #doctest: +ELLIPSIS
-      <persistent String object 'abc\x00def' @offset 0x...L>
+      <persistent ByteString object 'abc\x00def' @offset 0x...L>
       >>> s1.contents
       'abc\x00def'
 

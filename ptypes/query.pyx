@@ -637,7 +637,7 @@ class QueryMeta(type):
                               )
             for bindingRule in GroupBy:
                 assert isinstance(bindingRule, BindingRule), bindingRule
-                attributes[bindingRule.name] = output2.schema.String
+                attributes[bindingRule.name] = output2.schema.ByteString
             GroupClass = StructureMeta('Group', (PStructure,), attributes)
             for bindingRule in GroupBy:
                 bindingRule.keyField =\
@@ -655,14 +655,14 @@ class QueryMeta(type):
                     <PField?> getattr(AggregateClass, aggregator.name)
 
             _                = HashEntryMeta._typedef(output2,
-                                                     'ContingencyCell',
-                                                     PHashEntry,
-                                                     'Group',
-                                                     'Aggregate')
+                                                      'ContingencyCell',
+                                                      PHashEntry,
+                                                      'Group',
+                                                      'Aggregate')
             ContingencyTable = HashTableMeta._typedef(output2,
-                                                     'ContingencyTable',
-                                                     PConTable,
-                                                     'ContingencyCell')
+                                                      'ContingencyTable',
+                                                      PConTable,
+                                                      'ContingencyCell')
             attribute_dict['Group'] = GroupClass
             attribute_dict['Aggregate'] = AggregateClass
             attribute_dict['ContingencyTable'] = ContingencyTable

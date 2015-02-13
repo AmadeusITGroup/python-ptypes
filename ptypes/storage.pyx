@@ -2,6 +2,8 @@
 
 
 from libc.string cimport memcpy, memcmp, memset
+from md5 cimport MD5_checksum, MD5_CTX, MD5_Init, MD5_Update, MD5_Final
+
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -150,17 +152,17 @@ cdef class PersistentMeta(type):
     """
     @classmethod
     def _typedef(PersistentMeta meta, Storage storage, str className,
-                type proxyClass, *args):
+                 type proxyClass, *args):
         """ Create and initialize a new persistent type.
 
-        This is a non-public classmethod of :class:`PersistentMeta` and 
+        This is a non-public classmethod of :class:`PersistentMeta` and
         derived classes.
 
         :param meta: This type object must be the one representing
                 :class:`PersistentMeta` or another class derived from
-                it. (This parameter is normally filled in with the meta-class 
-                of the class the method is invoked on.) The new persistent type is
-                created using this type object as its meta-class.
+                it. (This parameter is normally filled in with the meta-class
+                of the class the method is invoked on.) The new persistent
+                type is created using this type object as its meta-class.
 
         @param storage:
         @param className: This will be the name of the new type.
@@ -502,68 +504,68 @@ cdef class Float(TypeDescriptor):
     meta = FloatMeta
     proxyClass = PFloat
 
-############################## String ######################################
+############################ ByteString ######################################
 
-cdef class StringMeta(PersistentMeta):
+cdef class ByteStringMeta(PersistentMeta):
 
-    def __call__(StringMeta ptype, object volatileString):
+    def __call__(ByteStringMeta ptype, bytes volatileByteString):
         """ Create an instance of the type ptype represents.
         """
         cdef:
-            int size = len(volatileString)
-            PString self = ptype.createProxy(ptype.storage
+            int size = len(volatileByteString)
+            PByteString self = ptype.createProxy(ptype.storage
                                              .allocate(sizeof(int) + size))
         (<int*>self.p2InternalStructure)[0] = size
-        memcpy(self.getCharPtr(), <char *?>volatileString, size)
+        memcpy(self.getCharPtr(), <char*>volatileByteString, size)
         return self
 
-    def __init__(StringMeta ptype,
+    def __init__(ByteStringMeta ptype,
                  Storage storage,
                  className,
                  proxyClass=None,
                  ):
         if proxyClass is None:
-            proxyClass = PString
-        assert issubclass(proxyClass, PString), proxyClass
+            proxyClass = PByteString
+        assert issubclass(proxyClass, PByteString), proxyClass
         # allocationSize is not used, no need to initialize it
         PersistentMeta.__init__(ptype, storage, className, proxyClass, 0)
 
 
-cdef class PString(AssignedByReference):
+cdef class PByteString(AssignedByReference):
 
     def __str__(self):
-        return self.contents
+        return self.getByteString()
 
     def __repr__(self):
         return ("<persistent {0} object {1} @offset {2}>"
                 .format(self.ptype.__name__,
-                        repr(self.getString()[:self.getSize()]),
+                        repr(self.getByteString()[:self.getSize()]),
                         hex(self.offset)
                         )
                 )
 
     property contents:
         def __get__(self):
-            return self.getString()
+            return self.getByteString()
 
     # The offset is not OK here: it must match that of the volatile object!
     def __hash__(self, ):
-        return hash(self.getString())
+        return hash(self.getByteString())
 
-    cdef int richcmp(PString self, other, int op) except? -123:
+    cdef int richcmp(PByteString self, other, int op) except? -123:
         cdef:
             char *selfValue
             char *otherValue
+            bytes otherValueAsByteString
             int otherSize, doesDiffer
         selfValue = self.getCharPtr()
-        if isinstance(other, PString):
-            otherSize  = (<PString> other).getSize()
-            otherValue = (<PString> other).getCharPtr()
+        if isinstance(other, PByteString):
+            otherSize  = (<PByteString> other).getSize()
+            otherValue = (<PByteString> other).getCharPtr()
         else:
-            if isinstance(other, str):
-                otherSize  = len(<str> other)
-                otherValue = <char *>other
-            else:
+            try:
+                otherValueAsByteString = other
+            except TypeError:
                 if op==2:
                     return False  # self == other
                 if op==3:
@@ -572,8 +574,11 @@ cdef class PString(AssignedByReference):
                     '{0} does not define a sort order for {1}!'
                     .format(self.ptype, other)
                 )
+            else:
+                otherSize  = len(otherValueAsByteString)
+                otherValue = <char*>otherValueAsByteString
         doesDiffer = memcmp(
-            selfValue, otherValue, min(self.getSize(), otherSize))
+            selfValue, <char*>otherValue, min(self.getSize(), otherSize))
         if not doesDiffer:
             doesDiffer =  self.getSize() - otherSize
         if op==0:
@@ -590,9 +595,9 @@ cdef class PString(AssignedByReference):
             return doesDiffer >= 0  # self >= other
         assert False, "Unknown operation code '{0}".format(op)
 
-cdef class __String(TypeDescriptor):
-    meta = StringMeta
-    proxyClass = PString
+cdef class __ByteString(TypeDescriptor):
+    meta = ByteStringMeta
+    proxyClass = PByteString
 
 
 ############################## HashEntry ######################################
@@ -651,13 +656,13 @@ cdef class HashTableMeta(PersistentMeta):
                 )
             )
             PersistentMeta entryClass = HashEntryMeta._typedef(storage,
-                                                              entryName,
-                                                              PHashEntry,
-                                                              keyClass,
-                                                              valueClass)
+                                                               entryName,
+                                                               PHashEntry,
+                                                               keyClass,
+                                                               valueClass)
 
         return super(HashTableMeta, meta)._typedef(storage, className,
-                                                  proxyClass, entryClass)
+                                                   proxyClass, entryClass)
 
     def __init__(self,
                  Storage       storage,
@@ -880,7 +885,7 @@ cdef class ListMeta(PersistentMeta):
             raise TypeError("The type parameter specifying the type of list "
                             "elements cannot be None.")
         return super(ListMeta, meta)._typedef(storage, className, proxyClass,
-                                             valueClass)
+                                              valueClass)
 
     def __init__(self,
                  Storage       storage,
@@ -963,7 +968,7 @@ threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
 
     def __init__(ptype, className, bases, dict attribute_dict):
-#         assert bases==(Structure,), bases  # no base classes supported yet
+        # assert bases==(Structure,), bases  # no base classes supported yet
         cdef Storage storage = getattr(threadLocal, 'currentStorage', None)
         if storage is None:
             raise Exception("Types with {ptype.__class__.__name__} as "
@@ -996,7 +1001,7 @@ cdef class StructureMeta(PersistentMeta):
     def reduce(ptype):
         d = dict(ptype.__dict__)
         for name in ['__metaclass__', '__dict__', '__weakref__', '__module__',
-                     'storage',]:
+                     'storage', ]:
             d.pop(name, None)
         # force the list, as we can't modify the dict while iterating over it
         for k, v in list(d.items()):
@@ -1006,7 +1011,7 @@ cdef class StructureMeta(PersistentMeta):
         for base in ptype.__bases__:
             if type(base) is StructureMeta:
                 base = ('persistentBase', base.__name__)
-            else: 
+            else:
                 base = ('volatileBase', base)
             bases.append(base)
         return ('StructureMeta', ptype.__name__, bases, d, ptype.fields)
@@ -1296,8 +1301,6 @@ cdef class Redo(MemoryMappedFile):
         self.p2FileHeader.o2Tail = <void*>self.p2Tail - self.baseAddress
         self.flush()
 
-from md5 cimport MD5_checksum, MD5_CTX, MD5_Init, MD5_Update, MD5_Final
-
 cdef struct CTrxHeader:
     # A transaction starts with a trx header, which is followed by a set of
     # redo records with the given total length.
@@ -1456,28 +1459,28 @@ cdef class Storage(MemoryMappedFile):
 
         self.define(Int)
         self.define(Float)
-        self.define(__String('String'))
+        self.define(__ByteString('ByteString'))
         cdef:
-            PersistentMeta ListOfStrings = \
-                self.define(List('__ListOfStrings')[self.schema.String])
-            PersistentMeta SetOfStrings  = \
-                self.define(Set('__SetOfStrings')[self.schema.String])
+            PersistentMeta ListOfByteStrings = \
+                self.define(List('__ListOfByteStrings')[self.schema.ByteString])
+            PersistentMeta SetOfByteStrings  = \
+                self.define(Set('__SetOfByteStrings')[self.schema.ByteString])
 
-        if self.p2FileHeader.o2StringRegistry:
+        if self.p2FileHeader.o2ByteStringRegistry:
             LOG.debug("Using the existing stringRegistry")
-            self.stringRegistry = SetOfStrings.createProxy(
-                self.p2FileHeader.o2StringRegistry)
+            self.stringRegistry = SetOfByteStrings.createProxy(
+                self.p2FileHeader.o2ByteStringRegistry)
         else:
             LOG.debug("Creating a new stringRegistry")
-            self.stringRegistry = SetOfStrings(self.stringRegistrySize)
-            self.p2FileHeader.o2StringRegistry = self.stringRegistry.offset
-        LOG.debug('self.p2FileHeader.o2StringRegistry: {0}'.format(
-            hex(self.p2FileHeader.o2StringRegistry)))
+            self.stringRegistry = SetOfByteStrings(self.stringRegistrySize)
+            self.p2FileHeader.o2ByteStringRegistry = self.stringRegistry.offset
+        LOG.debug('self.p2FileHeader.o2ByteStringRegistry: {0}'.format(
+            hex(self.p2FileHeader.o2ByteStringRegistry)))
 
         self.createTypes = (self.p2FileHeader.o2PickledTypeList == 0)
         if self.createTypes:
             LOG.debug("Creating a new schema")
-            self.pickledTypeList = <PList>ListOfStrings()
+            self.pickledTypeList = <PList>ListOfByteStrings()
             self.p2FileHeader.o2PickledTypeList = self.pickledTypeList.offset
             try:
                 threadLocal.currentStorage = self
@@ -1487,10 +1490,10 @@ cdef class Storage(MemoryMappedFile):
                 threadLocal.currentStorage = None
         else:
             LOG.debug("Loading the previously saved schema")
-            self.pickledTypeList = \
-                <PList>(ListOfStrings.createProxy(self.p2FileHeader
-                                                  .o2PickledTypeList)
-                        )
+            self.pickledTypeList = <PList>\
+                (ListOfByteStrings.createProxy(self.p2FileHeader
+                                                        .o2PickledTypeList)
+                 )
             for s in self.pickledTypeList:
                 t = pickle.loads(s.contents)
                 if t[0] == '_typedef':
@@ -1596,7 +1599,8 @@ cdef class Storage(MemoryMappedFile):
                     'self.createTypes: {self.createTypes}'.format(self=self))
                 if self.createTypes:
                     for ptype in self.typeList:
-                        if ptype.__name__ not in ('String', 'Int', 'Float', ):
+                        if ptype.__name__ not in ('ByteString', 'Int',
+                                                  'Float', ):
                             x = ptype.reduce()
 #                             LOG.debug( 'pickle data:'+ repr(x))
                             s = self.stringRegistry.get(pickle.dumps(x))
@@ -1625,8 +1629,8 @@ cdef class Storage(MemoryMappedFile):
         # need to check if they are filled in
         typeDescriptor.verifyTypeParameters(typeDescriptor.typeParameters)
         return meta._typedef(storage, typeDescriptor.className,
-                            typeDescriptor.proxyClass,
-                            *typeDescriptor.typeParameters)
+                             typeDescriptor.proxyClass,
+                             *typeDescriptor.typeParameters)
 
     def define(Storage storage, object o):
         if isinstance(o, TypeDescriptor):

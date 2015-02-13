@@ -35,40 +35,40 @@ It expects three type parameters:
 * the type of the target (*to*)node
 * the type of the data associated with the edge itself
 
-In the below snippet we create a persistent type called ``NodeOfString`` and
-based on :class:`~ptypes.graph.Node` and one called ``EdgeOfString`` based on
+In the below snippet we create a persistent type called ``NodeOfByteString`` and
+based on :class:`~ptypes.graph.Node` and one called ``EdgeOfByteString`` based on
 :class:`~ptypes.graph.Edge`.
-Instances of both can refer to an arbitrary ``String``.
-Furthermore ``EdgeOfString`` can connect ``NodeOfString`` instances::
+Instances of both can refer to an arbitrary ``ByteString``.
+Furthermore ``EdgeOfByteString`` can connect ``NodeOfByteString`` instances::
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         NodeOfString = self.define( Node('NodeOfString')[self.schema.String] )
-      ...         self.define( Edge('EdgeOfString')[NodeOfString, NodeOfString, self.schema.String, ] )
+      ...         NodeOfByteString = self.define( Node('NodeOfByteString')[self.schema.ByteString] )
+      ...         self.define( Edge('EdgeOfByteString')[NodeOfByteString, NodeOfByteString, self.schema.ByteString, ] )
       ...         class Root(self.schema.Structure):
-      ...             node1 = self.schema.NodeOfString
-      ...             node2 = self.schema.NodeOfString
-      ...             node3 = self.schema.NodeOfString
+      ...             node1 = self.schema.NodeOfByteString
+      ...             node2 = self.schema.NodeOfByteString
+      ...             node3 = self.schema.NodeOfByteString
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
  
-The ``Root`` object has three attributes capable of storing references to ``NodeOfString``
+The ``Root`` object has three attributes capable of storing references to ``NodeOfByteString``
 instances. Let's initialize them and connect them with edges like this::
 
       (node1) --> (node2) --> (node3)
 
-      >>> p.root.node1 = p.schema.NodeOfString()
-      >>> p.root.node2 = p.schema.NodeOfString()
-      >>> p.root.node3 = p.schema.NodeOfString()
-      >>> p.schema.EdgeOfString(p.root.node1, p.root.node2)          #doctest: +ELLIPSIS
-      <persistent graph edge 'EdgeOfString' @offset 0x...L referring to None >
-      >>> p.schema.EdgeOfString(p.root.node2, p.root.node3)            #doctest: +ELLIPSIS
-      <persistent graph edge 'EdgeOfString' @offset 0x...L referring to None >
+      >>> p.root.node1 = p.schema.NodeOfByteString()
+      >>> p.root.node2 = p.schema.NodeOfByteString()
+      >>> p.root.node3 = p.schema.NodeOfByteString()
+      >>> p.schema.EdgeOfByteString(p.root.node1, p.root.node2)          #doctest: +ELLIPSIS
+      <persistent graph edge 'EdgeOfByteString' @offset 0x...L referring to None >
+      >>> p.schema.EdgeOfByteString(p.root.node2, p.root.node3)            #doctest: +ELLIPSIS
+      <persistent graph edge 'EdgeOfByteString' @offset 0x...L referring to None >
 
 Tricky here: ``_`` refers to the result of the last statement, which prevents
 closing the storage::
 
       >>> _                                        #doctest: +ELLIPSIS
-      <persistent graph edge 'EdgeOfString' @offset 0x...L referring to None >
+      <persistent graph edge 'EdgeOfByteString' @offset 0x...L referring to None >
 
 Unfortunately ``del _`` does not work::
 
@@ -117,18 +117,18 @@ software sorted by name. We will use skip lists to implement these::
       ...
       ...         class Developer(self.schema.Structure):
       ...             id  = self.schema.Int
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age  = self.schema.Int
       ...
       ...         class Software(self.schema.Structure):
       ...             id  = self.schema.Int
-      ...             name = self.schema.String
-      ...             lang = self.schema.String
+      ...             name = self.schema.ByteString
+      ...             lang = self.schema.ByteString
       ...
       ...         NDeveloper = self.define( Node('NDeveloper')[Developer] )
       ...         NSoftware  = self.define( Node('NSoftware')[Software] )
       ...
-      ...         self.define( Dict('NDevelopersByName')[self.schema.String, self.schema.NDeveloper] )
+      ...         self.define( Dict('NDevelopersByName')[self.schema.ByteString, self.schema.NDeveloper] )
       ...         self.define( SkipList('Developers')[self.schema.NDeveloper, sortOrder] )
       ...         self.define( SkipList('Programs')[self.schema.NSoftware, sortOrder] )
       ...
@@ -173,11 +173,12 @@ We can populate this data structure::
       >>> p.root.devByName = p.schema.NDevelopersByName(10)
 
       >>> allNodes = dict()
-      >>> for properties in graphson["vertices"]:
+      >>> for props in graphson["vertices"]:
+      ...     properties = dict([(k, (v.encode() if isinstance(v, unicode) else v)) for k, v in props.items()])
       ...     nodes, NClass, Class = (p.root.sw, p.schema.NSoftware, p.schema.Software) if "lang" in properties else (p.root.dev, p.schema.NDeveloper, p.schema.Developer)
       ...     node = allNodes[properties["id"]] = NClass(Class(**properties))
       ...     nodes.insert(node)
-      ...     if "lang" not in properties: p.root.devByName[properties["name"].encode()] = node
+      ...     if "lang" not in properties: p.root.devByName[properties["name"]] = node
 
       >>> for properties in graphson["edges"]:                              #doctest: +ELLIPSIS
       ...     EdgeClass = getattr(p.schema, properties["_label"])
