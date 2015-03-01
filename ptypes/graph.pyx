@@ -4,12 +4,12 @@ from .storage cimport PersistentMeta, Persistent, AssignedByReference
 from .storage cimport Offset, Storage, TypeDescriptor
 from .query   cimport BindingRule, QueryContext
 
+from .storage import DefaultDict
+
 import logging
 LOG = logging.getLogger(__name__)
 
-from .storage import DefaultDict
-
-########################### Nodes of a graph ###############################
+# ================ Nodes of a graph ================
 cdef:
     struct CNode:
         Offset   o2FirstInEdgeKind, o2FirstOutEdgeKind
@@ -74,7 +74,6 @@ cdef class PNode(AssignedByReference):
                                   EdgeMeta      edgeClass,
                                   EdgeDirection edgeDirection,
                                   int           createNew=0) except NULL:
-        # print "getP2EdgeKind", self, hex(o2Name), edgeDirection, createNew
 
         cdef Offset *p2o2FirstEdgeKind
         if edgeDirection == In:
@@ -150,7 +149,7 @@ cdef class Node(TypeDescriptor):
     minNumberOfParameters=1
     maxNumberOfParameters=1
 
-############################# Edges of a graph ##############################
+# ================ Edges of a graph ================
 
 cdef struct CEdgeKind:
     Offset   o2ClassName, o2FirstEdge, o2NextEdgeKind
@@ -164,11 +163,12 @@ cdef class EdgeMeta(PersistentMeta):
         NodeMeta        fromNodeClass, toNodeClass
 
         # cache it; avoid calling stringRegistry.get(ptype.__name__)
-        Offset   o2Name
+        Offset          o2Name
+
         Offset          o2Value
 
-    def __init__(EdgeMeta  ptype,
-                 Storage       storage,
+    def __init__(EdgeMeta         ptype,
+                 Storage          storage,
                  str              className,
                  type             proxyClass,
                  PersistentMeta   fromNodeClass,
@@ -185,7 +185,9 @@ cdef class EdgeMeta(PersistentMeta):
         assert ptype.fromNodeClass.storage == storage
         ptype.toNodeClass  =  toNodeClass
         assert ptype.toNodeClass.storage == storage
-        ptype.o2Name = storage.stringRegistry.get(ptype.__name__).offset
+
+        ptype.o2Name = storage\
+            .stringRegistry.get(ptype.__name__.encode('utf8')).offset
 
     def reduce(ptype):
         return ('_typedef', ptype.__name__, ptype.__class__, ptype.proxyClass,
@@ -284,7 +286,7 @@ cdef class Edge(TypeDescriptor):
     minNumberOfParameters=3
     maxNumberOfParameters=3
 
-######################### BindingRules for graphs ###########################
+# ================ BindingRules for graphs ================
 
 cdef class NodeContents(BindingRule):
     """ Bind the contents of a node to the name of the variable.
@@ -381,11 +383,13 @@ cdef class FindEdge(BindingRule):
             kwargs['edgeKind'], = args
         else:
             raise TypeError('Ambiguous parametrisation.')
+
         if (kwargs.get('fromNode', None) is None and
-            kwargs.get('toNode', None) is None
-            ):
-                raise NotImplementedError('At least one of fromNode or toNode '
-                                          'has tobe specified.')
+                kwargs.get('toNode', None) is None):
+
+            raise NotImplementedError('At least one of fromNode or toNode '
+                                      'has tobe specified.')
+
         self.__init(**kwargs)
 
     def __init(self, str edgeKind, BindingRule fromNode=None,
