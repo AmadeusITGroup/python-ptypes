@@ -1,12 +1,11 @@
 # cython: profile=False
 
 
+from cpython.version cimport PY_MAJOR_VERSION
 from libc.string cimport memcpy, memcmp, memset
 from md5 cimport MD5_checksum, MD5_CTX, MD5_Init, MD5_Update, MD5_Final
 
 
-import logging
-LOG = logging.getLogger(__name__)
 from math import pow, log as logarithm
 from os import SEEK_SET, O_CREAT, O_RDWR
 from types import ModuleType
@@ -15,9 +14,15 @@ from time import strptime, mktime
 import os
 import threading
 import gc
+from codecs import decode
 
 from .compat import pickle
 
+import logging
+LOG = logging.getLogger(__name__)
+
+if PY_MAJOR_VERSION == 3:
+    from warnings import warn
 
 cdef class PList
 
@@ -79,7 +84,7 @@ cdef class Persistent(object):
     cdef revive(Persistent p):
         pass
 
-############################# Assignment By Value ########################
+# ================ Assignment By Value ================
 
 cdef Offset resolveNoOp(PersistentMeta ptype, Offset offset) except -1:
     return offset
@@ -111,7 +116,7 @@ cdef class AssignedByValue(Persistent):
             return doesDiffer != 0
         raise TypeError('{0} does not define a sort order!'.format(self.ptype))
 
-############################# Assignment By Reference ####################
+# ================ Assignment By Reference ================
 
 cdef Offset resolveReference(PersistentMeta ptype, Offset offset) except -1:
     return (<Offset*>(ptype.storage.baseAddress + offset))[0]
@@ -145,7 +150,7 @@ cdef class AssignedByReference(Persistent):
             return doesDiffer != 0
         raise TypeError('{0} does not define a sort order!'.format(self.ptype))
 
-############################# PersistentMeta #################################
+# ================ PersistentMeta ================
 
 cdef class PersistentMeta(type):
     """ Abstract base meta class for all persistent types.
@@ -299,7 +304,7 @@ cdef class PersistentMeta(type):
         return "<persistent class '{0}'>".format(ptype.__name__)
 
 
-############################# Type Descriptor #################################
+# ================ Type Descriptor ================
 
 cdef class TypeDescriptor(object):
     minNumberOfParameters=None
@@ -342,7 +347,7 @@ cdef class TypeDescriptor(object):
                                 self=self, typeParameters=typeParameters)
                             )
 
-############################## Int  ######################################
+# ================ Int  ================
 
 cdef class IntMeta(PersistentMeta):
 
@@ -392,7 +397,7 @@ cdef class PInt(AssignedByValue):
                 if op==3:
                     return True  # self != other
                 raise TypeError(
-                    '{0} does not define a sort order for {1}!'
+                    '{0} does not define a sort order for {1!r}!'
                     .format(self.ptype, other)
                 )
         if op==0:
@@ -428,7 +433,7 @@ cdef class Int(TypeDescriptor):
     meta = IntMeta
     proxyClass = PInt
 
-############################## Float  ######################################
+# ================ Float  ================
 
 cdef class FloatMeta(PersistentMeta):
 
@@ -481,7 +486,7 @@ cdef class PFloat(AssignedByValue):
                 if op==3:
                     return True  # self != other
                 raise TypeError(
-                    '{0} does not define a sort order for {1}!'
+                    '{0} does not define a sort order for {1!r}!'
                     .format(self.ptype, other))
         if op==0:
             return self.getP2IS()[0] <  otherValue  # self  < other
@@ -504,7 +509,7 @@ cdef class Float(TypeDescriptor):
     meta = FloatMeta
     proxyClass = PFloat
 
-############################ ByteString ######################################
+# ================ ByteString ================
 
 cdef class ByteStringMeta(PersistentMeta):
 
@@ -513,8 +518,10 @@ cdef class ByteStringMeta(PersistentMeta):
         """
         cdef:
             int size = len(volatileByteString)
-            PByteString self = ptype.createProxy(ptype.storage
-                                             .allocate(sizeof(int) + size))
+
+            PByteString self = \
+                ptype.createProxy(ptype.storage.allocate(sizeof(int) + size))
+
         (<int*>self.p2InternalStructure)[0] = size
         memcpy(self.getCharPtr(), <char*>volatileByteString, size)
         return self
@@ -534,14 +541,35 @@ cdef class ByteStringMeta(PersistentMeta):
 cdef class PByteString(AssignedByReference):
 
     def __str__(self):
-        return self.getByteString()
+        """ Return the contained string.
+
+            In Python2, a the byte string persisted is returned.
+
+            In Python3, using this method is a sick idea, because it has to
+            convert the bytes string to a unicode string, without knowing the
+            actual meaning of the bytes. As the least painful solution, the
+            bytes object is decoded using the  latin-1 (a.k.a. iso-8859-1)
+            codec, as this maps each byte value in the 0x0-0xff range to a
+            valid unicode code point (namely to the one having the same ordinal
+            as the value of the byte), so at least we avoid exceptions during
+            decoding.
+        """
+        if PY_MAJOR_VERSION < 3:
+            return self.getByteString()
+        else:
+            warn("Converting a byte string to unicode string is usually a bad "
+                 "idea (will use the latin_1 codec for now).",
+                 BytesWarning,
+                 stacklevel=2)
+            return decode(self.getByteString(), 'latin_1')
 
     def __repr__(self):
-        return ("<persistent {0} object {1} @offset {2}>"
-                .format(self.ptype.__name__,
-                        repr(self.getByteString()[:self.getSize()]),
-                        hex(self.offset)
-                        )
+        if PY_MAJOR_VERSION < 3:
+            s = self.getByteString()
+        else:
+            s = decode(self.getByteString(), 'latin_1')
+        return ("<persistent {0} object '{1}' @offset {2}>".
+                format(self.ptype.__name__, s, hex(self.offset))
                 )
 
     property contents:
@@ -571,7 +599,7 @@ cdef class PByteString(AssignedByReference):
                 if op==3:
                     return True  # self != other
                 raise TypeError(
-                    '{0} does not define a sort order for {1}!'
+                    '{0} does not define a sort order for {1!r}!'
                     .format(self.ptype, other)
                 )
             else:
@@ -600,7 +628,7 @@ cdef class __ByteString(TypeDescriptor):
     proxyClass = PByteString
 
 
-############################## HashEntry ######################################
+# ================ HashEntry ================
 cdef:
     struct CHashTable:
         unsigned long _capacity, _used,
@@ -634,14 +662,14 @@ cdef class HashEntryMeta(PersistentMeta):
 cdef class PHashEntry(AssignedByValue):
     pass
 
-############################## HashTable ######################################
+# ================ HashTable ================
 
 cdef class HashTableMeta(PersistentMeta):
 
     @classmethod
     def _typedef(PersistentMeta meta, Storage storage, str className,
-                type proxyClass, PersistentMeta keyClass,
-                PersistentMeta valueClass=None):
+                 type proxyClass, PersistentMeta keyClass,
+                 PersistentMeta valueClass=None):
         if keyClass is None:
             raise TypeError("The type parameter specifying the type of keys "
                             "cannot be {0}" .format(keyClass)
@@ -855,7 +883,7 @@ cdef class PDefaultHashTable(PHashTable):
         self.setValue(p2Entry, value)
 
 
-############################  Set #############################
+# ================  Set ================
 cdef class Set(TypeDescriptor):
     meta = HashTableMeta
     proxyClass = PHashTable
@@ -863,7 +891,7 @@ cdef class Set(TypeDescriptor):
     maxNumberOfParameters=1
 
 
-############################  Dictionary #############################
+# ================  Dictionary ================
 cdef class Dict(TypeDescriptor):
     meta = HashTableMeta
     proxyClass = PHashTable
@@ -875,12 +903,12 @@ cdef class DefaultDict(Dict):
     proxyClass = PDefaultHashTable
 
 
-############################## List ######################################
+# ================ List ================
 cdef class ListMeta(PersistentMeta):
 
     @classmethod
     def _typedef(PersistentMeta meta, Storage storage, str className,
-                type proxyClass, PersistentMeta valueClass):
+                 type proxyClass, PersistentMeta valueClass):
         if valueClass is None:
             raise TypeError("The type parameter specifying the type of list "
                             "elements cannot be None.")
@@ -963,7 +991,7 @@ cdef class List(TypeDescriptor):
     minNumberOfParameters=1
     maxNumberOfParameters=1
 
-############################## Structure ######################################
+# ================ Structure ================
 threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
 
@@ -1131,7 +1159,7 @@ cdef class PField(object):
         assert owner is not None
         assert owner.storage is self.ptype.storage, (
             owner.storage, self.ptype.storage)
-#         LOG.debug( str(('getting', hex(owner.offset), self.offset)) )
+#         LOG.debug( bytes(('getting', hex(owner.offset), self.offset)) )
         return self.ptype.resolveAndCreateProxy(owner.offset + self.offset)
 
     def __set__(PField self, PStructure owner, value):
@@ -1142,7 +1170,7 @@ cdef class PField(object):
 #         LOG.debug( str(('setting', hex(owner.offset), self.offset, value)) )
         self.ptype.assign(owner.p2InternalStructure + self.offset, value)
 
-############################## Storage ######################################
+# ================ Storage ================
 
 cdef char *ptypesMagic     = "ptypes-0.5.0"       # Maintained by bumpbersion,
 cdef char *ptypesRedoMagic = "redo-ptypes-0.5.0"  # no manual changes please!
@@ -1412,14 +1440,14 @@ cdef class Storage(MemoryMappedFile):
                                     self=self)
                                 )
             if (self.p2LoHeader == NULL or
-                self.p2LoHeader.revision > self.p2FileHeader.revision
-                ):
-                    self.p2LoHeader = self.p2FileHeader
+                    self.p2LoHeader.revision > self.p2FileHeader.revision):
+
+                self.p2LoHeader = self.p2FileHeader
 
             if (self.p2HiHeader == NULL or
-                self.p2HiHeader.revision < self.p2FileHeader.revision
-                ):
-                    self.p2HiHeader = self.p2FileHeader
+                    self.p2HiHeader.revision < self.p2FileHeader.revision):
+
+                self.p2HiHeader = self.p2FileHeader
 
         if self.p2HiHeader.status != 'C':  # roll back
             LOG.info(
@@ -1460,11 +1488,12 @@ cdef class Storage(MemoryMappedFile):
         self.define(Int)
         self.define(Float)
         self.define(__ByteString('ByteString'))
+        ByteString = self.schema.ByteString
         cdef:
             PersistentMeta ListOfByteStrings = \
-                self.define(List('__ListOfByteStrings')[self.schema.ByteString])
+                self.define(List('__ListOfByteStrings')[ByteString])
             PersistentMeta SetOfByteStrings  = \
-                self.define(Set('__SetOfByteStrings')[self.schema.ByteString])
+                self.define(Set('__SetOfByteStrings')[ByteString])
 
         if self.p2FileHeader.o2ByteStringRegistry:
             LOG.debug("Using the existing stringRegistry")
@@ -1490,10 +1519,11 @@ cdef class Storage(MemoryMappedFile):
                 threadLocal.currentStorage = None
         else:
             LOG.debug("Loading the previously saved schema")
-            self.pickledTypeList = <PList>\
-                (ListOfByteStrings.createProxy(self.p2FileHeader
-                                                        .o2PickledTypeList)
-                 )
+
+            self.pickledTypeList = <PList>(ListOfByteStrings.
+                                           createProxy(self.p2FileHeader
+                                                       .o2PickledTypeList))
+
             for s in self.pickledTypeList:
                 t = pickle.loads(s.contents)
                 if t[0] == '_typedef':
