@@ -60,15 +60,15 @@ instances. Let's initialize them and connect them with edges like this::
       >>> p.root.node2 = p.schema.NodeOfByteString()
       >>> p.root.node3 = p.schema.NodeOfByteString()
       >>> p.schema.EdgeOfByteString(p.root.node1, p.root.node2)          #doctest: +ELLIPSIS
-      <persistent graph edge 'EdgeOfByteString' @offset 0x...L referring to None >
+      <persistent graph edge 'EdgeOfByteString' @offset 0x... referring to None >
       >>> p.schema.EdgeOfByteString(p.root.node2, p.root.node3)            #doctest: +ELLIPSIS
-      <persistent graph edge 'EdgeOfByteString' @offset 0x...L referring to None >
+      <persistent graph edge 'EdgeOfByteString' @offset 0x... referring to None >
 
 Tricky here: ``_`` refers to the result of the last statement, which prevents
 closing the storage::
 
       >>> _                                        #doctest: +ELLIPSIS
-      <persistent graph edge 'EdgeOfByteString' @offset 0x...L referring to None >
+      <persistent graph edge 'EdgeOfByteString' @offset 0x... referring to None >
 
 Unfortunately ``del _`` does not work::
 
@@ -172,6 +172,10 @@ We can populate this data structure::
       >>> p.root.sw = p.schema.Programs()
       >>> p.root.devByName = p.schema.NDevelopersByName(10)
 
+      >>> import sys
+      >>> if sys.version_info[0] == 3:
+      ...     unicode = str
+
       >>> allNodes = dict()
       >>> for props in graphson["vertices"]:
       ...     properties = dict([(k, (v.encode() if isinstance(v, unicode) else v)) for k, v in props.items()])
@@ -186,16 +190,17 @@ We can populate this data structure::
 
 ... and run a simple query::
 
-      >>> for ndeveloper in p.root.devByName.itervalues():
+      >>> result = list()
+      >>> for ndeveloper in p.root.dev.itervalues():
       ...     developer = ndeveloper.contents.name
       ...     for _edge in ndeveloper.outEdges(p.schema.created):
       ...          developersProgram = _edge.toNode.contents.name
-      ...          print 'developer = {}, developersProgram = {}'.format(developer, developersProgram)
-      ...
-      developer = peter, developersProgram = lop
-      developer = marko, developersProgram = lop
+      ...          result.append('developer = {}, developersProgram = {}'.format(developer, developersProgram))
+      >>> print('\n'.join((result)))
       developer = josh, developersProgram = lop
       developer = josh, developersProgram = ripple
+      developer = marko, developersProgram = lop
+      developer = peter, developersProgram = lop
 
 .. _declarative-queries:
 
@@ -219,17 +224,17 @@ the same goal::
       >>> from ptypes.graph import FindEdge, NodeAttribute
 
       >>> class MyQuery(Query):
-      ...     _ndeveloper = Each('devByName')
-      ...     developer = NodeAttribute(_ndeveloper, "name")
-      ...     developersProgram = FindEdge('created'  , fromNode=_ndeveloper).toNode.attribute("name")
+      ...     _developer = Each('dev')
+      ...     developer = NodeAttribute(_developer, "name")
+      ...     developersProgram = FindEdge('created'  , fromNode=_developer).toNode.attribute("name")
       >>> query = MyQuery(p)
 
       >>> query()
       ==== Results ====
-      developer = peter, developersProgram = lop
-      developer = marko, developersProgram = lop
       developer = josh, developersProgram = lop
       developer = josh, developersProgram = ripple
+      developer = marko, developersProgram = lop
+      developer = peter, developersProgram = lop
       ---- End of results ----
 
 As you see, here the query is represented by a subclass of
