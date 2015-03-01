@@ -9,7 +9,7 @@ from .query   cimport BindingRule, QueryContext
 import logging
 LOG = logging.getLogger(__name__)
 
-############################  SkipList #############################
+# ================  SkipList ================
 
 cdef struct CSkipNode:
     Offset o2Next  # array of pointers to CSkipNode objects
@@ -149,12 +149,12 @@ cdef class SkipListMeta(PersistentMeta):
 
     @classmethod
     def _typedef(PersistentMeta   meta,
-                Storage          storage,
-                str              className,
-                type             proxyClass,
-                PersistentMeta   valueClass,
-                str              sortOrder=None,
-                ):
+                 Storage          storage,
+                 str              className,
+                 type             proxyClass,
+                 PersistentMeta   valueClass,
+                 str              sortOrder=None,
+                 ):
         if valueClass is None:
             raise ValueError("The type parameter specifying the type of values"
                              " cannot be {0}".format(valueClass)
@@ -164,12 +164,12 @@ cdef class SkipListMeta(PersistentMeta):
                              .format(valueClass=valueClass)
                              )
             SkipNodeMeta entryClass = SkipNodeMeta._typedef(storage, entryName,
-                                                           PSkipNode,
-                                                           valueClass,
-                                                           sortOrder)
+                                                            PSkipNode,
+                                                            valueClass,
+                                                            sortOrder)
 
         return super(SkipListMeta, meta)._typedef(storage, className,
-                                                 proxyClass, entryClass)
+                                                  proxyClass, entryClass)
 
     def __init__(ptype,
                  Storage      storage,
@@ -227,6 +227,8 @@ cdef class PSkipList(AssignedByReference):
 
     def __iter__(PSkipList self):
         return self.range(None, None)
+
+    itervalues = __iter__
 
     def range(PSkipList self, object fro=None, object to=None):
         # This is a generator, cdef is not possible!
@@ -354,7 +356,7 @@ cdef class SkipList(TypeDescriptor):
 def defineTypes(Storage p):
     pass
 
-########## Query BindingRules for persistent collections ###################
+# ============== Query BindingRules for persistent collections ==============
 
 cdef class Range(BindingRule):
 
