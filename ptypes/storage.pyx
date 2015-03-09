@@ -174,7 +174,7 @@ cdef class PersistentMeta(type):
         @param proxyClass: The new persistent type will be a
                 subclass of this class.
 
-        @return: A properly initialised PersistentMeta instance
+        @return: A properly initialized PersistentMeta instance
                 representing the newly created persistent type.
         """
         cdef PersistentMeta ptype = meta.__new__(meta, className,
@@ -189,7 +189,7 @@ cdef class PersistentMeta(type):
                   )
         return ptype
 
-    # This method is called to initialise an instance of this meta-class
+    # This method is called to initialize an instance of this meta-class
     # when a new persistent type has just been created
     def __init__(PersistentMeta ptype, Storage storage, str className,
                  type proxyClass, int allocationSize):
@@ -992,6 +992,87 @@ cdef class List(TypeDescriptor):
     maxNumberOfParameters=1
 
 # ================ Structure ================
+
+# Inheritance among persistent structures
+# ---------------------------------------
+# The offset stored in a PField object is valid only in the persistent
+# structure (i.e. StructureMeta instance) the PField object was added to. When
+# a new persistent structure inherits from an existing one, the persistent
+# fields of the latter need to be re-added to the former and their offsets
+# re-computed.
+
+# Fields are "virtual": a reference to a field called "foo" in code in any of
+# base classes and even in the derived class always refers to the same field.
+
+# The code in each base class and in the derived class may rely on the "foo"
+# field having a particular structure. The assumptions of the
+# individual classes about the structure of "foo" may be conflicting,
+# which we need to detect and prevent creating the derived class.  
+# Although Python typically cares about the structure and not the type of an
+# object, for now we define "conflicting" in a nominal sense 
+# (see http://en.wikipedia.org/wiki/Nominal_type_system). The rationale is that
+# the implementation of conflict-detection seems to be easier with this choice.
+# A structural conflict definition may be less restrictive, so at a later stage
+# the current conflict detection may be replaced with one based on that.
+# For now here is the nominal conflict definition:
+
+# Field #1 and field #2 (defined in a different persistent structure) are
+# conflicting if
+#  - they both use the same name and
+#  - both fields are persistent structures and
+#  - the type of field #1 is not a sub-type of field #2 and
+#  - the type of field #2 is not a sub-type of field #1 and
+# With this definition the type of the field in the derived class will be the
+# more derived of the types of the two fields.
+
+cdef _addInheritedFields(bases, dict newFields):
+    """ Update the 'newFields' argument with the fields defined in the bases.
+
+        @param bases: tuple of base classes
+
+        @param newFields: A dictionary containing the names and types of the
+                        fields declared in the body of the class statement
+                        defining the persistent structure. Will be updated with
+                        the fields defined in the base classes.
+        @raise TypeError: Raised when an inherited field is overridden with a
+                        conflicting type or the bases classes contain fields
+                        with conflicting types.
+    """
+    cdef:
+        StructureMeta ptype
+        PersistentMeta newFieldType, inheritedFieldType
+    # We rely on the bases already having copied their inherited fields
+    # (no need for recursion)
+    for base in bases:
+        if not isinstance(base, StructureMeta):
+            continue
+        ptype = <StructureMeta>base
+        for fieldName in ptype.pfields:
+            inheritedFieldType = \
+                        <PersistentMeta?>(ptype.pfields[fieldName]).ptype
+            try:
+                newFields[fieldName]
+            except KeyError:
+                # 1st encounter with this fieldName
+                newFields[fieldName] = inheritedFieldType
+            else:
+                if not isscubclass(newFields[fieldName], PersistentMeta):
+                    raise TypeError("'{0}' must be a persistent field"
+                                    .format(fieldName))
+                newFieldType = <PersistentMeta>(newFields[fieldName])
+                # field {fieldName} already exists, types must not conflict
+                if isscubclass(inheritedFieldType, newFieldType):
+                    # The inherited field is subclass of the new field, 
+                    # so we let the inherited rule
+                    newFields[fieldName] = inheritedFieldType
+                elif not isscubclass(newFieldType, inheritedFieldType):
+                    # re-definition with a conflicting type
+                    raise TypeError("Cannot re-define field '{1}' defined "
+                                    "in {0!r} as {3!r} to be of type {2!r}!"
+                                    .format(ptype, fieldName, newFieldType, 
+                                            inheritedFieldType))
+
+
 threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
 
@@ -1007,6 +1088,7 @@ cdef class StructureMeta(PersistentMeta):
         PersistentMeta.__init__(ptype, storage, className, PStructure, 0)
         ptype.fields = list()
         ptype.pfields = dict()
+        _addInheritedFields(bases, attribute_dict)
         for fieldName, fieldType in sorted(attribute_dict.items()):
             if isinstance(fieldType, PersistentMeta):
                 ptype.addField(fieldName, fieldType)
@@ -1019,7 +1101,7 @@ cdef class StructureMeta(PersistentMeta):
 
     cdef addField(StructureMeta ptype, name, PersistentMeta fieldType):
         ptype.fields.append((name, fieldType.__name__))
-        cdef pfield = PField(ptype.allocationSize, name, fieldType)
+        cdef PField pfield = PField(ptype.allocationSize, name, fieldType)
         ptype.pfields[name] = pfield
         setattr(ptype, name, pfield)
         ptype.allocationSize += fieldType.assignmentSize
@@ -1073,7 +1155,7 @@ cdef class PStructure(AssignedByReference):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    # The offset is not OK here: it must match that of the volatile object!
+    # The offset is not OK here: it must match the hash of the volatile object!
     def __hash__(self, ):
         return hash(self.get())
 

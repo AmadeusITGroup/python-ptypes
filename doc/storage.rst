@@ -45,7 +45,7 @@ automatically if and when the schema of a new storage object needs to be
 created. The reason for having to define the structure of the storage inside a
 callback is that the persistent types describing the structure are bound to the
 storage instance.
-This way we avoid having to refer explicitely to the storage instance through
+This way we avoid having to refer explicitly to the storage instance through
 the code that manipulates persistent objects inside the storage::
 
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
@@ -175,8 +175,8 @@ Note that converting the persistent byte string to a string is possible, ::
       >>> str(p.root.name)
       'James Bond'
 
-The assignment of the Python string  works because the constructor of
-``p.schema.ByteString`` accepts a Python string as its single argument.
+The assignment of the Python string works because the constructor of
+``p.schema.ByteString`` accepts a Python byte string as its single argument.
 Note however, that this solution leaks persistent storage space, as each time
 the Python string ``'James Bond'`` is  assigned,
 a new persistent string is allocated, storing the same sequence of characters::
@@ -221,13 +221,13 @@ size parameters or a schema. Its contents is preserved::
       >>> p.close()
       >>> os.unlink(mmapFileName)
 
-Our improved storage structure is still not very usefull as we can only define a single
+Our improved storage structure is still not very useful as we can only define a single
 secret agent in it. What if we have more?
 
 When defining the structure, we can rely on the ``type descriptor classes``. With the help of
-these one can define persistent types parametrized with already existing persistent types.
+these one can define persistent types parameterized with already existing persistent types.
 The most notable type descriptors are Dict and List.
-To define a parametrized persistent type, one instantiates a type descriptor supplying the
+To define a parameterized persistent type, one instantiates a type descriptor supplying the
 desired name of the new persistent type. The parameters of the type have to be specified
 using the item access operator, which records the parameters and returns the type descriptor
 instance. The instance is then passed in to the
@@ -481,6 +481,65 @@ pass in some garbage::
          ...
       TypeError: Don't know how to define 'foo'
 
+      >>> os.unlink(mmapFileName)
+
+.. more-on-persistent-structures:
+
+More on persistent structures
+---------------------------------
+
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class Base(self.schema.Structure):
+      ...             name = self.schema.ByteString
+      ...             def foo(self): return 314
+      ...             age = self.schema.Int
+      ...         class Root(Base):
+      ...             name = self.schema.ByteString
+      ...             weight = self.schema.Float
+
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+
+      >>> p.root.name is None
+      True
+      >>> p.root.age                                                 #doctest: +ELLIPSIS
+      <persistent Int object '0' @offset 0x...>
+      >>> p.root.weight                                               #doctest: +ELLIPSIS
+      <persistent Float object '0.0' @offset 0x...>
+      >>> p.root.foo()
+      314
+
+      >>> p.close()
+      >>> p = MyStorage(mmapFileName)
+      >>> p.root.foo()
+      314
+      >>> p.close()
+      >>> os.unlink(mmapFileName)
+
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class Base(self.schema.Structure):
+      ...             name = self.schema.ByteString
+      ...             age = self.schema.Int
+      ...         class Root(Base):
+      ...             name = self.schema.ByteString
+      ...             weight = self.schema.Float
+      ...             age = self.schema.Float
+
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+      >>> os.unlink(mmapFileName)
+ 
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class Base(self.schema.Structure):
+      ...             name = self.schema.ByteString
+      ...             age = self.schema.Int
+      ...         class Root(Base):
+      ...             name = self.schema.ByteString
+      ...             weight = self.schema.Float
+      ...             age = self.schema.Float
+
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
       >>> os.unlink(mmapFileName)
 
 That's it for getting started!
