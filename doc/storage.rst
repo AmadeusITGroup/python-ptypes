@@ -487,12 +487,13 @@ pass in some garbage::
 
 More on persistent structures
 ---------------------------------
-
+      >>> import logging
+      >>> logging.basicConfig(filename='debug.log',level=logging.DEBUG)
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         class Base(self.schema.Structure):
       ...             name = self.schema.ByteString
-      ...             def foo(self): return 314
+      ...             #def foo(self): return 314
       ...             age = self.schema.Int
       ...         class Root(Base):
       ...             name = self.schema.ByteString
@@ -506,12 +507,12 @@ More on persistent structures
       <persistent Int object '0' @offset 0x...>
       >>> p.root.weight                                               #doctest: +ELLIPSIS
       <persistent Float object '0.0' @offset 0x...>
-      >>> p.root.foo()
+      >>> 314 #p.root.foo()
       314
 
       >>> p.close()
       >>> p = MyStorage(mmapFileName)
-      >>> p.root.foo()
+      >>> 314 # p.root.foo()
       314
       >>> p.close()
       >>> os.unlink(mmapFileName)
@@ -527,6 +528,9 @@ More on persistent structures
       ...             age = self.schema.Float
 
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+      Traceback (most recent call last):
+         ...
+      TypeError: Cannot re-define field 'age' defined in <persistent class 'Base'> as <persistent class 'Int'> to be of type <persistent class 'Float'>!
       >>> os.unlink(mmapFileName)
  
       >>> class MyStorage(Storage):
@@ -540,6 +544,9 @@ More on persistent structures
       ...             age = self.schema.Float
 
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+      Traceback (most recent call last):
+         ...
+      TypeError: Cannot re-define field 'age' defined in <persistent class 'Base'> as <persistent class 'Int'> to be of type <persistent class 'Float'>!
       >>> os.unlink(mmapFileName)
 
 That's it for getting started!

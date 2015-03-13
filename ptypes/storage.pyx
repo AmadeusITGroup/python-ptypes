@@ -14,6 +14,8 @@ from time import strptime, mktime
 import os
 import threading
 import gc
+import textwrap
+import inspect
 from codecs import decode
 
 from .compat import pickle
@@ -1056,16 +1058,16 @@ cdef _addInheritedFields(bases, dict newFields):
                 # 1st encounter with this fieldName
                 newFields[fieldName] = inheritedFieldType
             else:
-                if not isscubclass(newFields[fieldName], PersistentMeta):
-                    raise TypeError("'{0}' must be a persistent field"
-                                    .format(fieldName))
+                if not isinstance(newFields[fieldName], PersistentMeta):
+                    raise TypeError("'{0}' must be a persistent field, not {1}"
+                                    .format(fieldName, newFields[fieldName]))
                 newFieldType = <PersistentMeta>(newFields[fieldName])
                 # field {fieldName} already exists, types must not conflict
-                if isscubclass(inheritedFieldType, newFieldType):
+                if issubclass(inheritedFieldType, newFieldType):
                     # The inherited field is subclass of the new field, 
                     # so we let the inherited rule
                     newFields[fieldName] = inheritedFieldType
-                elif not isscubclass(newFieldType, inheritedFieldType):
+                elif not issubclass(newFieldType, inheritedFieldType):
                     # re-definition with a conflicting type
                     raise TypeError("Cannot re-define field '{1}' defined "
                                     "in {0!r} as {3!r} to be of type {2!r}!"
@@ -1124,8 +1126,68 @@ cdef class StructureMeta(PersistentMeta):
             else:
                 base = ('volatileBase', base)
             bases.append(base)
-        return ('StructureMeta', ptype.__name__, bases, d, ptype.fields)
+        return ('StructureMeta', ptype.__name__, # name of the class
+                bases,         # base classes 
+                d,             # volatile members (docstring, methods, etc.)
+                ptype.fields   # persistent fields
+                )
 
+# The below two functions are copied from 
+# https://bitbucket.org/hpk42/execnet/src/tip/execnet/gateway.py?at=default
+# (Published under the MIT license)
+def _find_non_builtin_globals(source, codeobj):
+    try:
+        import ast
+    except ImportError:
+        return None
+    try:
+        import __builtin__
+    except ImportError:
+        import builtins as __builtin__
+
+    vars = dict.fromkeys(codeobj.co_varnames)
+    return [
+        node.id for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Name) and
+        node.id not in vars and
+        node.id not in __builtin__.__dict__
+    ]
+
+
+def _source_of_function(function):
+    if function.__name__ == '<lambda>':
+        raise ValueError("can't evaluate lambda functions'")
+    # XXX: we dont check before remote instanciation
+    #      if arguments are used propperly
+    args, varargs, keywords, defaults = inspect.getargspec(function)
+    if args[0] != 'channel':
+        raise ValueError('expected first function argument to be `channel`')
+
+    if PY_MAJOR_VERSION == 3:
+        closure = function.__closure__
+        codeobj = function.__code__
+    else:
+        closure = function.func_closure
+        codeobj = function.func_code
+
+    if closure is not None:
+        raise ValueError("functions with closures can't be passed")
+
+    try:
+        source = inspect.getsource(function)
+    except IOError:
+        raise ValueError("can't find source file for %s" % function)
+
+    source = textwrap.dedent(source)  # just for inner functions
+
+    used_globals = _find_non_builtin_globals(source, codeobj)
+    if used_globals:
+        raise ValueError(
+            "the use of non-builtin globals isn't supported",
+            used_globals,
+        )
+
+    return source
 
 cdef class PStructure(AssignedByReference):
     """ A structure is like a mutable named tuple.
