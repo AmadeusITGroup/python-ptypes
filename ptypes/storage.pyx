@@ -17,14 +17,12 @@ import gc
 import textwrap
 import inspect
 from codecs import decode
+from warnings import warn
 
 from .compat import pickle
 
 import logging
 LOG = logging.getLogger(__name__)
-
-if PY_MAJOR_VERSION == 3:
-    from warnings import warn
 
 cdef class PList
 
@@ -1027,7 +1025,15 @@ cdef class List(TypeDescriptor):
 # With this definition the type of the field in the derived class will be the
 # more derived of the types of the two fields.
 
-cdef _addInheritedFields(bases, dict newFields):
+def _getAllMembers(c):
+    for base in reversed(c.__bases__):
+        for item in _getAllMembers(base): 
+            yield item
+    for k, v in vars(c).items(): 
+        yield (c, k, v)
+
+
+cdef _addInheritedFields(StructureMeta ptype, bases, dict newFields):
     """ Update the 'newFields' argument with the fields defined in the bases.
 
         @param bases: tuple of base classes
@@ -1041,39 +1047,74 @@ cdef _addInheritedFields(bases, dict newFields):
                         with conflicting types.
     """
     cdef:
-        StructureMeta ptype
-        PersistentMeta newFieldType, inheritedFieldType
+        StructureMeta baseStructureMeta
+        PersistentMeta inheritedFieldType
     # We rely on the bases already having copied their inherited fields
     # (no need for recursion)
     for base in bases:
-        if not isinstance(base, StructureMeta):
-            continue
-        ptype = <StructureMeta>base
-        for fieldName in ptype.pfields:
-            inheritedFieldType = \
-                        <PersistentMeta?>(ptype.pfields[fieldName]).ptype
-            try:
-                newFields[fieldName]
-            except KeyError:
-                # 1st encounter with this fieldName
-                newFields[fieldName] = inheritedFieldType
-            else:
-                if not isinstance(newFields[fieldName], PersistentMeta):
-                    raise TypeError("'{0}' must be a persistent field, not {1}"
-                                    .format(fieldName, newFields[fieldName]))
-                newFieldType = <PersistentMeta>(newFields[fieldName])
-                # field {fieldName} already exists, types must not conflict
-                if issubclass(inheritedFieldType, newFieldType):
-                    # The inherited field is subclass of the new field, 
-                    # so we let the inherited rule
-                    newFields[fieldName] = inheritedFieldType
-                elif not issubclass(newFieldType, inheritedFieldType):
-                    # re-definition with a conflicting type
-                    raise TypeError("Cannot re-define field '{1}' defined "
-                                    "in {0!r} as {3!r} to be of type {2!r}!"
-                                    .format(ptype, fieldName, newFieldType, 
-                                            inheritedFieldType))
+        if isinstance(base, StructureMeta):
+            baseStructureMeta = <StructureMeta>base
+            if baseStructureMeta.storage is not ptype.storage:
+                raise TypeError("Cannot derive a persistent structure in "
+                                "storage {0} from a persistent type defined "
+                                "in storage {1}."
+                                .format(ptype.storage.fileName, 
+                                        baseStructureMeta.storage.fileName)
+                                )
+            for fieldName in baseStructureMeta.pfields:
+                inheritedFieldType = (<PersistentMeta?>
+                    (baseStructureMeta.pfields[fieldName]).ptype)
+                _addInheritedField(ptype, base, fieldName, 
+                                   inheritedFieldType, newFields)
+        else:
+            for owner, fieldName, fieldValue in _getAllMembers(base):
+                if isinstance(fieldValue, PersistentMeta):
+                    warn("Attempt to re-use persistent field '{0}' defined in "
+                         "volatile class {1} in the definition of persistent "
+                         "class {2} is ignored."
+                         .format(fieldName, owner, ptype), 
+                         RuntimeWarning)
+                    deadcode = """
+                    inheritedFieldType = <PersistentMeta>fieldValue
+                    if inheritedFieldType.storage is not ptype.storage:
+                        raise TypeError("Cannot reuse persistent field "
+                                        "{0} defined in {1} of storage "
+                                        "{2} for the definition of a "
+                                        "persistent field in storage {3}."
+                                        .format(fieldName, owner, 
+                                                ptype.storage.fileName, 
+                                                inheritedFieldType.storage
+                                                    .fileName)
+                                        )
+                    _addInheritedField(ptype, owner, fieldName, 
+                                       inheritedFieldType, newFields)
+                    """
 
+cdef _addInheritedField(StructureMeta ptype, base, str fieldName, 
+                        PersistentMeta inheritedFieldType, dict newFields):
+    cdef PersistentMeta newFieldType
+    try:
+        newFields[fieldName]
+    except KeyError:
+        # 1st encounter with this fieldName
+        newFields[fieldName] = inheritedFieldType
+    else:
+        if not isinstance(newFields[fieldName], PersistentMeta):
+            raise TypeError("'{0}' must be a persistent field, not {1}"
+                            .format(fieldName, newFields[fieldName]))
+        newFieldType = <PersistentMeta>(newFields[fieldName])
+        # field {fieldName} already exists, types must not conflict
+        if issubclass(inheritedFieldType, newFieldType):
+            # The inherited field is subclass of the new field, 
+            # so we let the inherited rule
+            newFields[fieldName] = inheritedFieldType
+        elif not issubclass(newFieldType, inheritedFieldType):
+            # re-definition with a conflicting type
+            raise TypeError("Cannot re-define field '{1}' defined "
+                            "in {0!r} as {3!r} to be of type {2!r}!"
+                            .format(base, fieldName, 
+                                    newFieldType, 
+                                    inheritedFieldType))
 
 threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
@@ -1090,10 +1131,17 @@ cdef class StructureMeta(PersistentMeta):
         PersistentMeta.__init__(ptype, storage, className, PStructure, 0)
         ptype.fields = list()
         ptype.pfields = dict()
-        _addInheritedFields(bases, attribute_dict)
+        _addInheritedFields(ptype, bases, attribute_dict)
         for fieldName, fieldType in sorted(attribute_dict.items()):
             if isinstance(fieldType, PersistentMeta):
                 ptype.addField(fieldName, fieldType)
+            else:
+                try:
+                    pickle.dumps(fieldType)
+                except TypeError:
+                    raise TypeError("'{0}' is defined as a non-pickleable "
+                                    "volatile member {1} in a persistent "
+                                    "structure".format(fieldName, fieldType))
         ptype.NamedTupleClass = namedtuple(className, ptype.pfields.keys())
         LOG.debug('Created {ptype} from meta-class {meta} using proxy '
                   '{proxyClass} allocationSize {allocationSize}'
@@ -1128,7 +1176,7 @@ cdef class StructureMeta(PersistentMeta):
             bases.append(base)
         return ('StructureMeta', ptype.__name__, # name of the class
                 bases,         # base classes 
-                d,             # volatile members (docstring, methods, etc.)
+                d,             # volatile members (docstring, etc.)
                 ptype.fields   # persistent fields
                 )
 

@@ -476,46 +476,101 @@ pass in some garbage::
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         self.define( 'foo' )
-      >>> p = MyStorage(mmapFileName, 1, 32) #doctest: +ELLIPSIS
+      >>> p = MyStorage(mmapFileName, 1, 32)              #doctest: +ELLIPSIS
       Traceback (most recent call last):
          ...
       TypeError: Don't know how to define 'foo'
 
       >>> os.unlink(mmapFileName)
 
-.. more-on-persistent-structures:
+The next step in improving the schema of our storage could be do define some
+methods on the ``Root`` class. However, ``ptypes`` does not support the
+definition of methods directly in the class definining a persistent structure::
 
-More on persistent structures
----------------------------------
-      >>> import logging
-      >>> logging.basicConfig(filename='debug.log',level=logging.DEBUG)
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         class Base(self.schema.Structure):
+      ...         class Root(self.schema.Structure):
+      ...             def foo(self): pass
+
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)  #doctest: +ELLIPSIS
+      Traceback (most recent call last):
+         ...
+      TypeError: 'foo' is defined as a non-pickleable volatile member <function foo at ...> in a persistent structure
+      >>> os.unlink(mmapFileName)
+
+This restriction does not mean a persistent structure cannot have methods (or 
+other non-pickleable members) at all: it can inherit them from its volatile 
+base classes.
+
+The reason for this restriction is not a merely technical one (the lack of 
+pickleability could be worked around). The class defining the persistent
+structure becomes meta-data, without which the data of the storage would be
+inaccessible. Therefor it is saved in the storage and once saved, it is
+immutable. Were methods defined there, they would also become immutable,
+or in other words unmaintainable.
+
+.. inheritance-and-persistent-structures:
+
+Inheritance and persistent structures
+--------------------------------------
+
+Already existing pesristent structures can be used as base classes when 
+defining a new one. Volatile classes can also be among the bases::
+
+      >>> import logging
+      >>> logging.basicConfig(filename='debug.log',level=logging.DEBUG)
+
+      >>> from testHelpers import VolatileMixIn, VolatileBase
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class Base(self.schema.Structure, VolatileMixIn):
       ...             name = self.schema.ByteString
-      ...             #def foo(self): return 314
       ...             age = self.schema.Int
-      ...         class Root(Base):
+      ...         VolatileBase.bar = self.schema.ByteString    # ignored
+      ...         class Root(Base, VolatileBase):
       ...             name = self.schema.ByteString
       ...             weight = self.schema.Float
 
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
-
       >>> p.root.name is None
       True
       >>> p.root.age                                                 #doctest: +ELLIPSIS
       <persistent Int object '0' @offset 0x...>
       >>> p.root.weight                                               #doctest: +ELLIPSIS
       <persistent Float object '0.0' @offset 0x...>
-      >>> 314 #p.root.foo()
+      >>> p.root.foo()
       314
+      
+Note that persistent fields defined in volatile base classes are ignored (i.e. 
+the class attribute remains a reference to a persistent type as opposed
+to converting it to a persistent field) and a warning is given about this::
+
+      >>> p.root.bar
+      <persistent class 'ByteString'>
+
+When an existing storage is re-opened, the methods of the volatile mix-in are 
+restored from the module defining the mix-in::
 
       >>> p.close()
       >>> p = MyStorage(mmapFileName)
-      >>> 314 # p.root.foo()
+      >>> p.root.foo()
       314
       >>> p.close()
       >>> os.unlink(mmapFileName)
+
+As the above example shows, it is acceptable to re-define a field with the same
+type in the derived class. (Practically the re-definition is ignored.)
+
+The re-definition is also acceptable if it defines the type of the field to 
+be a base-type of the type of the field in the base class. (This 
+re-definition is also ignored.)
+Finally, the re-definition is accepted even if it defines
+the type of the field to be a type derived from the type of the field in the 
+base class. (This is the only case when the re-definition actually takes 
+effect.)::
+
+It is not acceptable to re-define the type of the field to a completly 
+unrelated one::
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
@@ -548,5 +603,10 @@ More on persistent structures
          ...
       TypeError: Cannot re-define field 'age' defined in <persistent class 'Base'> as <persistent class 'Int'> to be of type <persistent class 'Float'>!
       >>> os.unlink(mmapFileName)
+
+Persistent base classes must be defined in the same storage instance as the 
+derived class::
+
+The volatile base classes must be importable when the storage is opened::
 
 That's it for getting started!
