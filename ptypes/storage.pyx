@@ -1067,6 +1067,13 @@ cdef _addInheritedFields(StructureMeta ptype, bases, dict newFields):
                 _addInheritedField(ptype, base, fieldName, 
                                    inheritedFieldType, newFields)
         else:
+            try:
+                pickle.dumps(base)
+            except (TypeError, pickle.PicklingError):
+                raise TypeError("Cannot use the non-pickleable volatile class "
+                                "{0} as a base class in the definition of "
+                                "the persistent structure {1}"
+                                .format(base, ptype))
             for owner, fieldName, fieldValue in _getAllMembers(base):
                 if isinstance(fieldValue, PersistentMeta):
                     warn("Attempt to re-use persistent field '{0}' defined in "
@@ -1138,7 +1145,7 @@ cdef class StructureMeta(PersistentMeta):
             else:
                 try:
                     pickle.dumps(fieldType)
-                except TypeError:
+                except (TypeError, pickle.PicklingError):
                     raise TypeError("'{0}' is defined as a non-pickleable "
                                     "volatile member {1} in a persistent "
                                     "structure".format(fieldName, fieldType))

@@ -26,7 +26,7 @@ The structure is defined in the
 
  * called ``Root`` 
  * subclassed from ``self.schema.Structure`` (where ``self`` is the sole
-parameter of :meth:`~ptypes.storage.Storage.populateSchema()`)
+   parameter of :meth:`~ptypes.storage.Storage.populateSchema()`)
 
 ``self.schema.Structure`` comes with a metaclass (:class:`~ptypes.storage.StructureMeta`),
 which takes care of binding the persistent class to the
@@ -495,7 +495,7 @@ definition of methods directly in the class definining a persistent structure::
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)  #doctest: +ELLIPSIS
       Traceback (most recent call last):
          ...
-      TypeError: 'foo' is defined as a non-pickleable volatile member <function foo at ...> in a persistent structure
+      TypeError: 'foo' is defined as a non-pickleable volatile member <function ...foo at ...> in a persistent structure
       >>> os.unlink(mmapFileName)
 
 This restriction does not mean a persistent structure cannot have methods (or 
@@ -562,12 +562,49 @@ As the above example shows, it is acceptable to re-define a field with the same
 type in the derived class. (Practically the re-definition is ignored.)
 
 The re-definition is also acceptable if it defines the type of the field to 
-be a base-type of the type of the field in the base class. (This 
-re-definition is also ignored.)
+be a base-type of the type of the field in the base class. This 
+re-definition is also ignored::
+
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class BaseField(self.schema.Structure):
+      ...             foo = self.schema.ByteString
+      ...         class DerivedField(BaseField):
+      ...             bar = self.schema.Int
+      ...         class Base(self.schema.Structure):
+      ...             field = DerivedField
+      ...         class Root(Base):
+      ...             field = BaseField
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+      >>> p.root.field = p.schema.BaseField()
+      Traceback (most recent call last):
+         ...
+      TypeError: Expected <persistent class 'DerivedField'>, found <persistent class 'BaseField'>
+      >>> p.close()
+      >>> os.unlink(mmapFileName)
+
 Finally, the re-definition is accepted even if it defines
 the type of the field to be a type derived from the type of the field in the 
-base class. (This is the only case when the re-definition actually takes 
-effect.)::
+base class. This is the only case when the re-definition actually takes 
+effect::
+
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class BaseField(self.schema.Structure):
+      ...             foo = self.schema.ByteString
+      ...         class DerivedField(BaseField):
+      ...             bar = self.schema.Int
+      ...         class Base(self.schema.Structure):
+      ...             field = BaseField
+      ...         class Root(Base):
+      ...             field = DerivedField
+
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+      >>> p.root.field = p.schema.DerivedField()
+      >>> p.root.field.foo = b"foo"
+      >>> p.root.field.bar = 5
+      >>> p.close()
+      >>> os.unlink(mmapFileName)
 
 It is not acceptable to re-define the type of the field to a completly 
 unrelated one::
@@ -605,8 +642,21 @@ unrelated one::
       >>> os.unlink(mmapFileName)
 
 Persistent base classes must be defined in the same storage instance as the 
-derived class::
+derived class.
 
 The volatile base classes must be importable when the storage is opened::
+
+      >>> class NonImportableVolatileBase(object):
+      ...     pass
+
+      >>> class MyStorage(Storage):
+      ...     def populateSchema(self):
+      ...         class Root(self.schema.Structure, NonImportableVolatileBase):
+      ...             pass #name = self.schema.ByteString
+
+      >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
+      Traceback (most recent call last):
+         ...
+      TypeError: Cannot use the non-pickleable volatile class <class '__main__.NonImportableVolatileBase'> as a base class in the definition of the persistent structure <persistent class 'Root'>
 
 That's it for getting started!
