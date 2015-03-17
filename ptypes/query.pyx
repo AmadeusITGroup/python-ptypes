@@ -373,8 +373,8 @@ cdef class Each(BindingRule):
 
     def __init__(self, str indexName, bint shortCut=False):
         """ @param indexName: The name of the index to be used. The index must
-                                have an :meth:`~itervalues()` method and must 
-                                be available in the schema under the given 
+                                have an :meth:`~itervalues()` method and must
+                                be available in the schema under the given
                                 name.
         """
         BindingRule.__init__(self, shortCut=shortCut)

@@ -1,7 +1,8 @@
 class VolatileBase(object):
     pass
 
-class VolatileMixIn(object):
-    def foo(self): 
-        return 314
 
+class VolatileMixIn(object):
+
+    def foo(self):
+        return 314

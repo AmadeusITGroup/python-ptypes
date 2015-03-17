@@ -991,6 +991,7 @@ cdef class List(TypeDescriptor):
     minNumberOfParameters=1
     maxNumberOfParameters=1
 
+
 # ================ Structure ================
 
 # Inheritance among persistent structures
@@ -1007,9 +1008,9 @@ cdef class List(TypeDescriptor):
 # The code in each base class and in the derived class may rely on the "foo"
 # field having a particular structure. The assumptions of the
 # individual classes about the structure of "foo" may be conflicting,
-# which we need to detect and prevent creating the derived class.  
+# which we need to detect and prevent creating the derived class.
 # Although Python typically cares about the structure and not the type of an
-# object, for now we define "conflicting" in a nominal sense 
+# object, for now we define "conflicting" in a nominal sense
 # (see http://en.wikipedia.org/wiki/Nominal_type_system). The rationale is that
 # the implementation of conflict-detection seems to be easier with this choice.
 # A structural conflict definition may be less restrictive, so at a later stage
@@ -1027,9 +1028,9 @@ cdef class List(TypeDescriptor):
 
 def _getAllMembers(c):
     for base in reversed(c.__bases__):
-        for item in _getAllMembers(base): 
+        for item in _getAllMembers(base):
             yield item
-    for k, v in vars(c).items(): 
+    for k, v in vars(c).items():
         yield (c, k, v)
 
 
@@ -1058,13 +1059,13 @@ cdef _addInheritedFields(StructureMeta ptype, bases, dict newFields):
                 raise TypeError("Cannot derive a persistent structure in "
                                 "storage {0} from a persistent type defined "
                                 "in storage {1}."
-                                .format(ptype.storage.fileName, 
+                                .format(ptype.storage.fileName,
                                         baseStructureMeta.storage.fileName)
                                 )
             for fieldName in baseStructureMeta.pfields:
-                inheritedFieldType = (<PersistentMeta?>
-                    (baseStructureMeta.pfields[fieldName]).ptype)
-                _addInheritedField(ptype, base, fieldName, 
+                inheritedFieldType = <PersistentMeta?>\
+                    (baseStructureMeta.pfields[fieldName]).ptype
+                _addInheritedField(ptype, base, fieldName,
                                    inheritedFieldType, newFields)
         else:
             try:
@@ -1079,7 +1080,7 @@ cdef _addInheritedFields(StructureMeta ptype, bases, dict newFields):
                     warn("Attempt to re-use persistent field '{0}' defined in "
                          "volatile class {1} in the definition of persistent "
                          "class {2} is ignored."
-                         .format(fieldName, owner, ptype), 
+                         .format(fieldName, owner, ptype),
                          RuntimeWarning)
                     deadcode = """
                     inheritedFieldType = <PersistentMeta>fieldValue
@@ -1088,16 +1089,16 @@ cdef _addInheritedFields(StructureMeta ptype, bases, dict newFields):
                                         "{0} defined in {1} of storage "
                                         "{2} for the definition of a "
                                         "persistent field in storage {3}."
-                                        .format(fieldName, owner, 
-                                                ptype.storage.fileName, 
+                                        .format(fieldName, owner,
+                                                ptype.storage.fileName,
                                                 inheritedFieldType.storage
                                                     .fileName)
                                         )
-                    _addInheritedField(ptype, owner, fieldName, 
+                    _addInheritedField(ptype, owner, fieldName,
                                        inheritedFieldType, newFields)
                     """
 
-cdef _addInheritedField(StructureMeta ptype, base, str fieldName, 
+cdef _addInheritedField(StructureMeta ptype, base, str fieldName,
                         PersistentMeta inheritedFieldType, dict newFields):
     cdef PersistentMeta newFieldType
     try:
@@ -1112,15 +1113,15 @@ cdef _addInheritedField(StructureMeta ptype, base, str fieldName,
         newFieldType = <PersistentMeta>(newFields[fieldName])
         # field {fieldName} already exists, types must not conflict
         if issubclass(inheritedFieldType, newFieldType):
-            # The inherited field is subclass of the new field, 
+            # The inherited field is subclass of the new field,
             # so we let the inherited rule
             newFields[fieldName] = inheritedFieldType
         elif not issubclass(newFieldType, inheritedFieldType):
             # re-definition with a conflicting type
             raise TypeError("Cannot re-define field '{1}' defined "
                             "in {0!r} as {3!r} to be of type {2!r}!"
-                            .format(base, fieldName, 
-                                    newFieldType, 
+                            .format(base, fieldName,
+                                    newFieldType,
                                     inheritedFieldType))
 
 threadLocal = threading.local()
@@ -1181,13 +1182,14 @@ cdef class StructureMeta(PersistentMeta):
             else:
                 base = ('volatileBase', base)
             bases.append(base)
-        return ('StructureMeta', ptype.__name__, # name of the class
-                bases,         # base classes 
+        return ('StructureMeta', ptype.__name__,  # name of the class
+                bases,         # base classes
                 d,             # volatile members (docstring, etc.)
                 ptype.fields   # persistent fields
                 )
 
-# The below two functions are copied from 
+
+# The below two functions are copied from
 # https://bitbucket.org/hpk42/execnet/src/tip/execnet/gateway.py?at=default
 # (Published under the MIT license)
 def _find_non_builtin_globals(source, codeobj):

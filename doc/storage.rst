@@ -517,9 +517,6 @@ Inheritance and persistent structures
 Already existing pesristent structures can be used as base classes when 
 defining a new one. Volatile classes can also be among the bases::
 
-      >>> import logging
-      >>> logging.basicConfig(filename='debug.log',level=logging.DEBUG)
-
       >>> from testHelpers import VolatileMixIn, VolatileBase
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
