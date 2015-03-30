@@ -5,7 +5,7 @@ python:
 install:
   - pip install cython
   - pip install -e .
-script: PYTHONPATH=$PYTHONPATH;doc py.test
+script: PYTHONPATH=$PYTHONPATH:doc py.test
 sudo: false
 notifications:
   email: false
