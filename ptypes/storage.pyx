@@ -14,15 +14,15 @@ from time import strptime, mktime
 import os
 import threading
 import gc
+import textwrap
+import inspect
 from codecs import decode
+from warnings import warn
 
 from .compat import pickle
 
 import logging
 LOG = logging.getLogger(__name__)
-
-if PY_MAJOR_VERSION == 3:
-    from warnings import warn
 
 cdef class PList
 
@@ -174,7 +174,7 @@ cdef class PersistentMeta(type):
         @param proxyClass: The new persistent type will be a
                 subclass of this class.
 
-        @return: A properly initialised PersistentMeta instance
+        @return: A properly initialized PersistentMeta instance
                 representing the newly created persistent type.
         """
         cdef PersistentMeta ptype = meta.__new__(meta, className,
@@ -189,7 +189,7 @@ cdef class PersistentMeta(type):
                   )
         return ptype
 
-    # This method is called to initialise an instance of this meta-class
+    # This method is called to initialize an instance of this meta-class
     # when a new persistent type has just been created
     def __init__(PersistentMeta ptype, Storage storage, str className,
                  type proxyClass, int allocationSize):
@@ -991,7 +991,139 @@ cdef class List(TypeDescriptor):
     minNumberOfParameters=1
     maxNumberOfParameters=1
 
+
 # ================ Structure ================
+
+# Inheritance among persistent structures
+# ---------------------------------------
+# The offset stored in a PField object is valid only in the persistent
+# structure (i.e. StructureMeta instance) the PField object was added to. When
+# a new persistent structure inherits from an existing one, the persistent
+# fields of the latter need to be re-added to the former and their offsets
+# re-computed.
+
+# Fields are "virtual": a reference to a field called "foo" in code in any of
+# base classes and even in the derived class always refers to the same field.
+
+# The code in each base class and in the derived class may rely on the "foo"
+# field having a particular structure. The assumptions of the
+# individual classes about the structure of "foo" may be conflicting,
+# which we need to detect and prevent creating the derived class.
+# Although Python typically cares about the structure and not the type of an
+# object, for now we define "conflicting" in a nominal sense
+# (see http://en.wikipedia.org/wiki/Nominal_type_system). The rationale is that
+# the implementation of conflict-detection seems to be easier with this choice.
+# A structural conflict definition may be less restrictive, so at a later stage
+# the current conflict detection may be replaced with one based on that.
+# For now here is the nominal conflict definition:
+
+# Field #1 and field #2 (defined in a different persistent structure) are
+# conflicting if
+#  - they both use the same name and
+#  - both fields are persistent structures and
+#  - the type of field #1 is not a sub-type of field #2 and
+#  - the type of field #2 is not a sub-type of field #1 and
+# With this definition the type of the field in the derived class will be the
+# more derived of the types of the two fields.
+
+def _getAllMembers(c):
+    for base in reversed(c.__bases__):
+        for item in _getAllMembers(base):
+            yield item
+    for k, v in vars(c).items():
+        yield (c, k, v)
+
+
+cdef _addInheritedFields(StructureMeta ptype, bases, dict newFields):
+    """ Update the 'newFields' argument with the fields defined in the bases.
+
+        @param bases: tuple of base classes
+
+        @param newFields: A dictionary containing the names and types of the
+                        fields declared in the body of the class statement
+                        defining the persistent structure. Will be updated with
+                        the fields defined in the base classes.
+        @raise TypeError: Raised when an inherited field is overridden with a
+                        conflicting type or the bases classes contain fields
+                        with conflicting types.
+    """
+    cdef:
+        StructureMeta baseStructureMeta
+        PersistentMeta inheritedFieldType
+    # We rely on the bases already having copied their inherited fields
+    # (no need for recursion)
+    for base in bases:
+        if isinstance(base, StructureMeta):
+            baseStructureMeta = <StructureMeta>base
+            if baseStructureMeta.storage is not ptype.storage:
+                raise TypeError("Cannot derive a persistent structure in "
+                                "storage {0} from a persistent type defined "
+                                "in storage {1}."
+                                .format(ptype.storage.fileName,
+                                        baseStructureMeta.storage.fileName)
+                                )
+            for fieldName in baseStructureMeta.pfields:
+                inheritedFieldType = <PersistentMeta?>\
+                    (baseStructureMeta.pfields[fieldName]).ptype
+                _addInheritedField(ptype, base, fieldName,
+                                   inheritedFieldType, newFields)
+        else:
+            try:
+                pickle.dumps(base)
+            except (TypeError, pickle.PicklingError):
+                raise TypeError("Cannot use the non-pickleable volatile class "
+                                "{0} as a base class in the definition of "
+                                "the persistent structure {1}"
+                                .format(base, ptype))
+            for owner, fieldName, fieldValue in _getAllMembers(base):
+                if isinstance(fieldValue, PersistentMeta):
+                    warn("Attempt to re-use persistent field '{0}' defined in "
+                         "volatile class {1} in the definition of persistent "
+                         "class {2} is ignored."
+                         .format(fieldName, owner, ptype),
+                         RuntimeWarning)
+                    deadcode = """
+                    inheritedFieldType = <PersistentMeta>fieldValue
+                    if inheritedFieldType.storage is not ptype.storage:
+                        raise TypeError("Cannot reuse persistent field "
+                                        "{0} defined in {1} of storage "
+                                        "{2} for the definition of a "
+                                        "persistent field in storage {3}."
+                                        .format(fieldName, owner,
+                                                ptype.storage.fileName,
+                                                inheritedFieldType.storage
+                                                    .fileName)
+                                        )
+                    _addInheritedField(ptype, owner, fieldName,
+                                       inheritedFieldType, newFields)
+                    """
+
+cdef _addInheritedField(StructureMeta ptype, base, str fieldName,
+                        PersistentMeta inheritedFieldType, dict newFields):
+    cdef PersistentMeta newFieldType
+    try:
+        newFields[fieldName]
+    except KeyError:
+        # 1st encounter with this fieldName
+        newFields[fieldName] = inheritedFieldType
+    else:
+        if not isinstance(newFields[fieldName], PersistentMeta):
+            raise TypeError("'{0}' must be a persistent field, not {1}"
+                            .format(fieldName, newFields[fieldName]))
+        newFieldType = <PersistentMeta>(newFields[fieldName])
+        # field {fieldName} already exists, types must not conflict
+        if issubclass(inheritedFieldType, newFieldType):
+            # The inherited field is subclass of the new field,
+            # so we let the inherited rule
+            newFields[fieldName] = inheritedFieldType
+        elif not issubclass(newFieldType, inheritedFieldType):
+            # re-definition with a conflicting type
+            raise TypeError("Cannot re-define field '{1}' defined "
+                            "in {0!r} as {3!r} to be of type {2!r}!"
+                            .format(base, fieldName,
+                                    newFieldType,
+                                    inheritedFieldType))
+
 threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
 
@@ -1007,9 +1139,17 @@ cdef class StructureMeta(PersistentMeta):
         PersistentMeta.__init__(ptype, storage, className, PStructure, 0)
         ptype.fields = list()
         ptype.pfields = dict()
+        _addInheritedFields(ptype, bases, attribute_dict)
         for fieldName, fieldType in sorted(attribute_dict.items()):
             if isinstance(fieldType, PersistentMeta):
                 ptype.addField(fieldName, fieldType)
+            else:
+                try:
+                    pickle.dumps(fieldType)
+                except (TypeError, pickle.PicklingError):
+                    raise TypeError("'{0}' is defined as a non-pickleable "
+                                    "volatile member {1} in a persistent "
+                                    "structure".format(fieldName, fieldType))
         ptype.NamedTupleClass = namedtuple(className, ptype.pfields.keys())
         LOG.debug('Created {ptype} from meta-class {meta} using proxy '
                   '{proxyClass} allocationSize {allocationSize}'
@@ -1019,7 +1159,7 @@ cdef class StructureMeta(PersistentMeta):
 
     cdef addField(StructureMeta ptype, name, PersistentMeta fieldType):
         ptype.fields.append((name, fieldType.__name__))
-        cdef pfield = PField(ptype.allocationSize, name, fieldType)
+        cdef PField pfield = PField(ptype.allocationSize, name, fieldType)
         ptype.pfields[name] = pfield
         setattr(ptype, name, pfield)
         ptype.allocationSize += fieldType.assignmentSize
@@ -1042,8 +1182,69 @@ cdef class StructureMeta(PersistentMeta):
             else:
                 base = ('volatileBase', base)
             bases.append(base)
-        return ('StructureMeta', ptype.__name__, bases, d, ptype.fields)
+        return ('StructureMeta', ptype.__name__,  # name of the class
+                bases,         # base classes
+                d,             # volatile members (docstring, etc.)
+                ptype.fields   # persistent fields
+                )
 
+
+# The below two functions are copied from
+# https://bitbucket.org/hpk42/execnet/src/tip/execnet/gateway.py?at=default
+# (Published under the MIT license)
+def _find_non_builtin_globals(source, codeobj):
+    try:
+        import ast
+    except ImportError:
+        return None
+    try:
+        import __builtin__
+    except ImportError:
+        import builtins as __builtin__
+
+    vars = dict.fromkeys(codeobj.co_varnames)
+    return [
+        node.id for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Name) and
+        node.id not in vars and
+        node.id not in __builtin__.__dict__
+    ]
+
+
+def _source_of_function(function):
+    if function.__name__ == '<lambda>':
+        raise ValueError("can't evaluate lambda functions'")
+    # XXX: we dont check before remote instanciation
+    #      if arguments are used propperly
+    args, varargs, keywords, defaults = inspect.getargspec(function)
+    if args[0] != 'channel':
+        raise ValueError('expected first function argument to be `channel`')
+
+    if PY_MAJOR_VERSION == 3:
+        closure = function.__closure__
+        codeobj = function.__code__
+    else:
+        closure = function.func_closure
+        codeobj = function.func_code
+
+    if closure is not None:
+        raise ValueError("functions with closures can't be passed")
+
+    try:
+        source = inspect.getsource(function)
+    except IOError:
+        raise ValueError("can't find source file for %s" % function)
+
+    source = textwrap.dedent(source)  # just for inner functions
+
+    used_globals = _find_non_builtin_globals(source, codeobj)
+    if used_globals:
+        raise ValueError(
+            "the use of non-builtin globals isn't supported",
+            used_globals,
+        )
+
+    return source
 
 cdef class PStructure(AssignedByReference):
     """ A structure is like a mutable named tuple.
@@ -1073,7 +1274,7 @@ cdef class PStructure(AssignedByReference):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    # The offset is not OK here: it must match that of the volatile object!
+    # The offset is not OK here: it must match the hash of the volatile object!
     def __hash__(self, ):
         return hash(self.get())
 
