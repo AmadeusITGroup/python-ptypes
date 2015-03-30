@@ -1,11 +1,11 @@
 # cython: profile=False
 
+
+from cpython.version cimport PY_MAJOR_VERSION
 from libc.string cimport memcpy, memcmp, memset
+from md5 cimport MD5_checksum, MD5_CTX, MD5_Init, MD5_Update, MD5_Final
 
-import logging
-LOG = logging.getLogger(__name__)
 
-from cPickle import dumps, loads
 from math import pow, log as logarithm
 from os import SEEK_SET, O_CREAT, O_RDWR
 from types import ModuleType
@@ -14,7 +14,15 @@ from time import strptime, mktime
 import os
 import threading
 import gc
+from codecs import decode
 
+from .compat import pickle
+
+import logging
+LOG = logging.getLogger(__name__)
+
+if PY_MAJOR_VERSION == 3:
+    from warnings import warn
 
 cdef class PList
 
@@ -76,7 +84,7 @@ cdef class Persistent(object):
     cdef revive(Persistent p):
         pass
 
-############################# Assignment By Value ########################
+# ================ Assignment By Value ================
 
 cdef Offset resolveNoOp(PersistentMeta ptype, Offset offset) except -1:
     return offset
@@ -108,7 +116,7 @@ cdef class AssignedByValue(Persistent):
             return doesDiffer != 0
         raise TypeError('{0} does not define a sort order!'.format(self.ptype))
 
-############################# Assignment By Reference ####################
+# ================ Assignment By Reference ================
 
 cdef Offset resolveReference(PersistentMeta ptype, Offset offset) except -1:
     return (<Offset*>(ptype.storage.baseAddress + offset))[0]
@@ -142,24 +150,24 @@ cdef class AssignedByReference(Persistent):
             return doesDiffer != 0
         raise TypeError('{0} does not define a sort order!'.format(self.ptype))
 
-############################# PersistentMeta #################################
+# ================ PersistentMeta ================
 
 cdef class PersistentMeta(type):
     """ Abstract base meta class for all persistent types.
     """
     @classmethod
     def _typedef(PersistentMeta meta, Storage storage, str className,
-                type proxyClass, *args):
+                 type proxyClass, *args):
         """ Create and initialize a new persistent type.
 
-        This is a non-public classmethod of :class:`PersistentMeta` and 
+        This is a non-public classmethod of :class:`PersistentMeta` and
         derived classes.
 
         :param meta: This type object must be the one representing
                 :class:`PersistentMeta` or another class derived from
-                it. (This parameter is normally filled in with the meta-class 
-                of the class the method is invoked on.) The new persistent type is
-                created using this type object as its meta-class.
+                it. (This parameter is normally filled in with the meta-class
+                of the class the method is invoked on.) The new persistent
+                type is created using this type object as its meta-class.
 
         @param storage:
         @param className: This will be the name of the new type.
@@ -296,7 +304,7 @@ cdef class PersistentMeta(type):
         return "<persistent class '{0}'>".format(ptype.__name__)
 
 
-############################# Type Descriptor #################################
+# ================ Type Descriptor ================
 
 cdef class TypeDescriptor(object):
     minNumberOfParameters=None
@@ -339,7 +347,7 @@ cdef class TypeDescriptor(object):
                                 self=self, typeParameters=typeParameters)
                             )
 
-############################## Int  ######################################
+# ================ Int  ================
 
 cdef class IntMeta(PersistentMeta):
 
@@ -389,7 +397,7 @@ cdef class PInt(AssignedByValue):
                 if op==3:
                     return True  # self != other
                 raise TypeError(
-                    '{0} does not define a sort order for {1}!'
+                    '{0} does not define a sort order for {1!r}!'
                     .format(self.ptype, other)
                 )
         if op==0:
@@ -425,7 +433,7 @@ cdef class Int(TypeDescriptor):
     meta = IntMeta
     proxyClass = PInt
 
-############################## Float  ######################################
+# ================ Float  ================
 
 cdef class FloatMeta(PersistentMeta):
 
@@ -478,7 +486,7 @@ cdef class PFloat(AssignedByValue):
                 if op==3:
                     return True  # self != other
                 raise TypeError(
-                    '{0} does not define a sort order for {1}!'
+                    '{0} does not define a sort order for {1!r}!'
                     .format(self.ptype, other))
         if op==0:
             return self.getP2IS()[0] <  otherValue  # self  < other
@@ -501,78 +509,104 @@ cdef class Float(TypeDescriptor):
     meta = FloatMeta
     proxyClass = PFloat
 
-############################## String ######################################
+# ================ ByteString ================
 
-cdef class StringMeta(PersistentMeta):
+cdef class ByteStringMeta(PersistentMeta):
 
-    def __call__(StringMeta ptype, object volatileString):
+    def __call__(ByteStringMeta ptype, bytes volatileByteString):
         """ Create an instance of the type ptype represents.
         """
         cdef:
-            int size = len(volatileString)
-            PString self = ptype.createProxy(ptype.storage
-                                             .allocate(sizeof(int) + size))
+            int size = len(volatileByteString)
+
+            PByteString self = \
+                ptype.createProxy(ptype.storage.allocate(sizeof(int) + size))
+
         (<int*>self.p2InternalStructure)[0] = size
-        memcpy(self.getCharPtr(), <char *?>volatileString, size)
+        memcpy(self.getCharPtr(), <char*>volatileByteString, size)
         return self
 
-    def __init__(StringMeta ptype,
+    def __init__(ByteStringMeta ptype,
                  Storage storage,
                  className,
                  proxyClass=None,
                  ):
         if proxyClass is None:
-            proxyClass = PString
-        assert issubclass(proxyClass, PString), proxyClass
+            proxyClass = PByteString
+        assert issubclass(proxyClass, PByteString), proxyClass
         # allocationSize is not used, no need to initialize it
         PersistentMeta.__init__(ptype, storage, className, proxyClass, 0)
 
 
-cdef class PString(AssignedByReference):
+cdef class PByteString(AssignedByReference):
 
     def __str__(self):
-        return self.contents
+        """ Return the contained string.
+
+            In Python2, a the byte string persisted is returned.
+
+            In Python3, using this method is a sick idea, because it has to
+            convert the bytes string to a unicode string, without knowing the
+            actual meaning of the bytes. As the least painful solution, the
+            bytes object is decoded using the  latin-1 (a.k.a. iso-8859-1)
+            codec, as this maps each byte value in the 0x0-0xff range to a
+            valid unicode code point (namely to the one having the same ordinal
+            as the value of the byte), so at least we avoid exceptions during
+            decoding.
+        """
+        if PY_MAJOR_VERSION < 3:
+            return self.getByteString()
+        else:
+            warn("Converting a byte string to unicode string is usually a bad "
+                 "idea (will use the latin_1 codec for now).",
+                 BytesWarning,
+                 stacklevel=2)
+            return decode(self.getByteString(), 'latin_1')
 
     def __repr__(self):
-        return ("<persistent {0} object {1} @offset {2}>"
-                .format(self.ptype.__name__,
-                        repr(self.getString()[:self.getSize()]),
-                        hex(self.offset)
-                        )
+        if PY_MAJOR_VERSION < 3:
+            s = self.getByteString()
+        else:
+            s = decode(self.getByteString(), 'latin_1')
+        return ("<persistent {0} object '{1}' @offset {2}>".
+                format(self.ptype.__name__, s, hex(self.offset))
                 )
 
     property contents:
         def __get__(self):
-            return self.getString()
+            return self.getByteString()
 
     # The offset is not OK here: it must match that of the volatile object!
     def __hash__(self, ):
-        return hash(self.getString())
+        return hash(self.getByteString())
 
-    cdef int richcmp(PString self, other, int op) except? -123:
+    cdef int richcmp(PByteString self, other, int op) except? -123:
         cdef:
             char *selfValue
             char *otherValue
+            bytes otherValueAsByteString
             int otherSize, doesDiffer
         selfValue = self.getCharPtr()
-        if isinstance(other, PString):
-            otherSize  = (<PString> other).getSize()
-            otherValue = (<PString> other).getCharPtr()
+        if isinstance(other, PByteString):
+            otherSize  = (<PByteString> other).getSize()
+            otherValue = (<PByteString> other).getCharPtr()
         else:
-            if isinstance(other, str):
-                otherSize  = len(<str> other)
-                otherValue = <char *>other
-            else:
+            try:
+                otherValueAsByteString = other
+            except TypeError:
                 if op==2:
                     return False  # self == other
                 if op==3:
                     return True  # self != other
                 raise TypeError(
-                    '{0} does not define a sort order for {1}!'
+                    '{0} does not define a sort order for {1!r}!'
                     .format(self.ptype, other)
                 )
+            else:
+                otherSize  = len(otherValueAsByteString)
+                otherValue = <char*>otherValueAsByteString
         doesDiffer = memcmp(
-            selfValue, otherValue, min(self.getSize(), otherSize))
+            selfValue, <char*>otherValue, min(self.getSize(), otherSize))
         if not doesDiffer:
             doesDiffer =  self.getSize() - otherSize
         if op==0:
@@ -589,12 +623,12 @@ cdef class PString(AssignedByReference):
             return doesDiffer >= 0  # self >= other
         assert False, "Unknown operation code '{0}".format(op)
 
-cdef class __String(TypeDescriptor):
-    meta = StringMeta
-    proxyClass = PString
+cdef class __ByteString(TypeDescriptor):
+    meta = ByteStringMeta
+    proxyClass = PByteString
 
 
-############################## HashEntry ######################################
+# ================ HashEntry ================
 cdef:
     struct CHashTable:
         unsigned long _capacity, _used,
@@ -628,14 +662,14 @@ cdef class HashEntryMeta(PersistentMeta):
 cdef class PHashEntry(AssignedByValue):
     pass
 
-############################## HashTable ######################################
+# ================ HashTable ================
 
 cdef class HashTableMeta(PersistentMeta):
 
     @classmethod
     def _typedef(PersistentMeta meta, Storage storage, str className,
-                type proxyClass, PersistentMeta keyClass,
-                PersistentMeta valueClass=None):
+                 type proxyClass, PersistentMeta keyClass,
+                 PersistentMeta valueClass=None):
         if keyClass is None:
             raise TypeError("The type parameter specifying the type of keys "
                             "cannot be {0}" .format(keyClass)
@@ -650,13 +684,13 @@ cdef class HashTableMeta(PersistentMeta):
                 )
             )
             PersistentMeta entryClass = HashEntryMeta._typedef(storage,
-                                                              entryName,
-                                                              PHashEntry,
-                                                              keyClass,
-                                                              valueClass)
+                                                               entryName,
+                                                               PHashEntry,
+                                                               keyClass,
+                                                               valueClass)
 
         return super(HashTableMeta, meta)._typedef(storage, className,
-                                                  proxyClass, entryClass)
+                                                   proxyClass, entryClass)
 
     def __init__(self,
                  Storage       storage,
@@ -849,7 +883,7 @@ cdef class PDefaultHashTable(PHashTable):
         self.setValue(p2Entry, value)
 
 
-############################  Set #############################
+# ================  Set ================
 cdef class Set(TypeDescriptor):
     meta = HashTableMeta
     proxyClass = PHashTable
@@ -857,7 +891,7 @@ cdef class Set(TypeDescriptor):
     maxNumberOfParameters=1
 
 
-############################  Dictionary #############################
+# ================  Dictionary ================
 cdef class Dict(TypeDescriptor):
     meta = HashTableMeta
     proxyClass = PHashTable
@@ -869,17 +903,17 @@ cdef class DefaultDict(Dict):
     proxyClass = PDefaultHashTable
 
 
-############################## List ######################################
+# ================ List ================
 cdef class ListMeta(PersistentMeta):
 
     @classmethod
     def _typedef(PersistentMeta meta, Storage storage, str className,
-                type proxyClass, PersistentMeta valueClass):
+                 type proxyClass, PersistentMeta valueClass):
         if valueClass is None:
             raise TypeError("The type parameter specifying the type of list "
                             "elements cannot be None.")
         return super(ListMeta, meta)._typedef(storage, className, proxyClass,
-                                             valueClass)
+                                              valueClass)
 
     def __init__(self,
                  Storage       storage,
@@ -957,12 +991,12 @@ cdef class List(TypeDescriptor):
     minNumberOfParameters=1
     maxNumberOfParameters=1
 
-############################## Structure ######################################
+# ================ Structure ================
 threadLocal = threading.local()
 cdef class StructureMeta(PersistentMeta):
 
     def __init__(ptype, className, bases, dict attribute_dict):
-#         assert bases==(Structure,), bases  # no base classes supported yet
+        # assert bases==(Structure,), bases  # no base classes supported yet
         cdef Storage storage = getattr(threadLocal, 'currentStorage', None)
         if storage is None:
             raise Exception("Types with {ptype.__class__.__name__} as "
@@ -995,16 +1029,17 @@ cdef class StructureMeta(PersistentMeta):
     def reduce(ptype):
         d = dict(ptype.__dict__)
         for name in ['__metaclass__', '__dict__', '__weakref__', '__module__',
-                     'storage',]:
+                     'storage', ]:
             d.pop(name, None)
-        for k, v in d.items():
+        # force the list, as we can't modify the dict while iterating over it
+        for k, v in list(d.items()):
             if isinstance(v, PField):
                 del d[k]
         bases = list()
         for base in ptype.__bases__:
             if type(base) is StructureMeta:
                 base = ('persistentBase', base.__name__)
-            else: 
+            else:
                 base = ('volatileBase', base)
             bases.append(base)
         return ('StructureMeta', ptype.__name__, bases, d, ptype.fields)
@@ -1124,7 +1159,7 @@ cdef class PField(object):
         assert owner is not None
         assert owner.storage is self.ptype.storage, (
             owner.storage, self.ptype.storage)
-#         LOG.debug( str(('getting', hex(owner.offset), self.offset)) )
+#         LOG.debug( bytes(('getting', hex(owner.offset), self.offset)) )
         return self.ptype.resolveAndCreateProxy(owner.offset + self.offset)
 
     def __set__(PField self, PStructure owner, value):
@@ -1135,7 +1170,7 @@ cdef class PField(object):
 #         LOG.debug( str(('setting', hex(owner.offset), self.offset, value)) )
         self.ptype.assign(owner.p2InternalStructure + self.offset, value)
 
-############################## Storage ######################################
+# ================ Storage ================
 
 cdef char *ptypesMagic     = "ptypes-0.5.0"       # Maintained by bumpbersion,
 cdef char *ptypesRedoMagic = "redo-ptypes-0.5.0"  # no manual changes please!
@@ -1176,7 +1211,7 @@ cdef class MemoryMappedFile(object):
             self.realFileSize = self.numPages * PAGESIZE
             self.fd = os.open(self.fileName, O_CREAT | O_RDWR)
             os.lseek(self.fd, self.realFileSize-1, SEEK_SET)
-            os.write(self.fd, '\x00')
+            os.write(self.fd, b'\x00')
         else:
             LOG.debug(
                 "Opened existing file '{self.fileName}'".format(self=self))
@@ -1294,8 +1329,6 @@ cdef class Redo(MemoryMappedFile):
         self.p2FileHeader.o2Tail = <void*>self.p2Tail - self.baseAddress
         self.flush()
 
-from md5 cimport MD5_checksum, MD5_CTX, MD5_Init, MD5_Update, MD5_Final
-
 cdef struct CTrxHeader:
     # A transaction starts with a trx header, which is followed by a set of
     # redo records with the given total length.
@@ -1407,14 +1440,14 @@ cdef class Storage(MemoryMappedFile):
                                     self=self)
                                 )
             if (self.p2LoHeader == NULL or
-                self.p2LoHeader.revision > self.p2FileHeader.revision
-                ):
-                    self.p2LoHeader = self.p2FileHeader
+                    self.p2LoHeader.revision > self.p2FileHeader.revision):
+
+                self.p2LoHeader = self.p2FileHeader
 
             if (self.p2HiHeader == NULL or
-                self.p2HiHeader.revision < self.p2FileHeader.revision
-                ):
-                    self.p2HiHeader = self.p2FileHeader
+                    self.p2HiHeader.revision < self.p2FileHeader.revision):
+
+                self.p2HiHeader = self.p2FileHeader
 
         if self.p2HiHeader.status != 'C':  # roll back
             LOG.info(
@@ -1454,28 +1487,29 @@ cdef class Storage(MemoryMappedFile):
 
         self.define(Int)
         self.define(Float)
-        self.define(__String('String'))
+        self.define(__ByteString('ByteString'))
+        ByteString = self.schema.ByteString
         cdef:
-            PersistentMeta ListOfStrings = \
-                self.define(List('__ListOfStrings')[self.schema.String])
-            PersistentMeta SetOfStrings  = \
-                self.define(Set('__SetOfStrings')[self.schema.String])
+            PersistentMeta ListOfByteStrings = \
+                self.define(List('__ListOfByteStrings')[ByteString])
+            PersistentMeta SetOfByteStrings  = \
+                self.define(Set('__SetOfByteStrings')[ByteString])
 
-        if self.p2FileHeader.o2StringRegistry:
+        if self.p2FileHeader.o2ByteStringRegistry:
             LOG.debug("Using the existing stringRegistry")
-            self.stringRegistry = SetOfStrings.createProxy(
-                self.p2FileHeader.o2StringRegistry)
+            self.stringRegistry = SetOfByteStrings.createProxy(
+                self.p2FileHeader.o2ByteStringRegistry)
         else:
             LOG.debug("Creating a new stringRegistry")
-            self.stringRegistry = SetOfStrings(self.stringRegistrySize)
-            self.p2FileHeader.o2StringRegistry = self.stringRegistry.offset
-        LOG.debug('self.p2FileHeader.o2StringRegistry: {0}'.format(
-            hex(self.p2FileHeader.o2StringRegistry)))
+            self.stringRegistry = SetOfByteStrings(self.stringRegistrySize)
+            self.p2FileHeader.o2ByteStringRegistry = self.stringRegistry.offset
+        LOG.debug('self.p2FileHeader.o2ByteStringRegistry: {0}'.format(
+            hex(self.p2FileHeader.o2ByteStringRegistry)))
 
         self.createTypes = (self.p2FileHeader.o2PickledTypeList == 0)
         if self.createTypes:
             LOG.debug("Creating a new schema")
-            self.pickledTypeList = <PList>ListOfStrings()
+            self.pickledTypeList = <PList>ListOfByteStrings()
             self.p2FileHeader.o2PickledTypeList = self.pickledTypeList.offset
             try:
                 threadLocal.currentStorage = self
@@ -1485,12 +1519,13 @@ cdef class Storage(MemoryMappedFile):
                 threadLocal.currentStorage = None
         else:
             LOG.debug("Loading the previously saved schema")
-            self.pickledTypeList = \
-                <PList>(ListOfStrings.createProxy(self.p2FileHeader
-                                                  .o2PickledTypeList)
-                        )
+
+            self.pickledTypeList = <PList>(ListOfByteStrings.
+                                           createProxy(self.p2FileHeader
+                                                       .o2PickledTypeList))
+
             for s in self.pickledTypeList:
-                t = loads(s.contents)
+                t = pickle.loads(s.contents)
                 if t[0] == '_typedef':
                     className, meta, proxyClass = t[1:4]
                     typeParams = [
@@ -1594,10 +1629,11 @@ cdef class Storage(MemoryMappedFile):
                     'self.createTypes: {self.createTypes}'.format(self=self))
                 if self.createTypes:
                     for ptype in self.typeList:
-                        if ptype.__name__ not in ('String', 'Int', 'Float', ):
+                        if ptype.__name__ not in ('ByteString', 'Int',
+                                                  'Float', ):
                             x = ptype.reduce()
 #                             LOG.debug( 'pickle data:'+ repr(x))
-                            s = self.stringRegistry.get(dumps(x))
+                            s = self.stringRegistry.get(pickle.dumps(x))
                             self.pickledTypeList.append(s)
                             del s  # do not leave a dangling proxy around
                     LOG.debug("Saved the new schema.")
@@ -1623,8 +1659,8 @@ cdef class Storage(MemoryMappedFile):
         # need to check if they are filled in
         typeDescriptor.verifyTypeParameters(typeDescriptor.typeParameters)
         return meta._typedef(storage, typeDescriptor.className,
-                            typeDescriptor.proxyClass,
-                            *typeDescriptor.typeParameters)
+                             typeDescriptor.proxyClass,
+                             *typeDescriptor.typeParameters)
 
     def define(Storage storage, object o):
         if isinstance(o, TypeDescriptor):

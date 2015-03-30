@@ -5,16 +5,16 @@ from .storage cimport HashTableMeta, PDefaultHashTable, DefaultDict
 from .storage cimport HashEntryMeta, PHashEntry
 from .storage cimport StructureMeta, PStructure, PField
 
-import logging
-LOG = logging.getLogger(__name__)
-
 from math import log as logarithm
 from uuid import uuid4
 # from time import strptime, mktime
 from collections import defaultdict
 from itertools import count
 
-############################  Contingency Table #############################
+import logging
+LOG = logging.getLogger(__name__)
+
+# ================  Contingency Table ================
 
 cdef class PConTable(PDefaultHashTable):
 
@@ -126,14 +126,14 @@ cdef class PConTable(PDefaultHashTable):
 cdef class ContingencyTable(DefaultDict):
     proxyClass = PConTable
 
-######################  Query Interface ########################
+# ================  Query Interface ================
 variableOrdinal = count(0)  # XXX The GIL is here used as lock for the ordinal?
 cdef class Variable(object):
 
     def __init__(self, ):
         self.name = '_V' + str(uuid4().hex)
         # XXX Acquire lock/GIL
-        self.ordinal = variableOrdinal.next()
+        self.ordinal = next(variableOrdinal)
         # XXX Release lock/GIL
 
     def __repr__(self):
@@ -367,11 +367,16 @@ cdef class LookUp(BindingRule):
 
 
 cdef class Each(BindingRule):
-    """ Bind the next value in a hash index to the name of the rule.
+    """ Bind the next value in an index to the name of the rule.
     """
     cdef readonly str indexName
 
     def __init__(self, str indexName, bint shortCut=False):
+        """ @param indexName: The name of the index to be used. The index must
+                                have an :meth:`~itervalues()` method and must 
+                                be available in the schema under the given 
+                                name.
+        """
         BindingRule.__init__(self, shortCut=shortCut)
         self.indexName = indexName
 
@@ -488,7 +493,7 @@ cdef class QueryContext(object):
                 keyBindingRule.keyField.get(group)
 
     cpdef begin(self):
-        self.callback.next()
+        next(self.callback)
 
     cdef do(self):
         self.callback.send(self)
@@ -637,7 +642,7 @@ class QueryMeta(type):
                               )
             for bindingRule in GroupBy:
                 assert isinstance(bindingRule, BindingRule), bindingRule
-                attributes[bindingRule.name] = output2.schema.String
+                attributes[bindingRule.name] = output2.schema.ByteString
             GroupClass = StructureMeta('Group', (PStructure,), attributes)
             for bindingRule in GroupBy:
                 bindingRule.keyField =\
@@ -655,14 +660,14 @@ class QueryMeta(type):
                     <PField?> getattr(AggregateClass, aggregator.name)
 
             _                = HashEntryMeta._typedef(output2,
-                                                     'ContingencyCell',
-                                                     PHashEntry,
-                                                     'Group',
-                                                     'Aggregate')
+                                                      'ContingencyCell',
+                                                      PHashEntry,
+                                                      'Group',
+                                                      'Aggregate')
             ContingencyTable = HashTableMeta._typedef(output2,
-                                                     'ContingencyTable',
-                                                     PConTable,
-                                                     'ContingencyCell')
+                                                      'ContingencyTable',
+                                                      PConTable,
+                                                      'ContingencyCell')
             attribute_dict['Group'] = GroupClass
             attribute_dict['Aggregate'] = AggregateClass
             attribute_dict['ContingencyTable'] = ContingencyTable

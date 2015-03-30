@@ -6,6 +6,9 @@ from .storage cimport Offset, Storage
 from cpython cimport PyObject, Py_buffer
 from libc.string cimport memcpy, strlen
 
+import logging
+LOG = logging.getLogger(__name__)
+
 cdef extern from "Python.h":
     int PyBUF_FULL_RO, PyBUF_C_CONTIGUOUS, PyBUF_ANY_CONTIGUOUS, PyBUF_FORMAT
     int PyBUF_SIMPLE  # PyBUF_INDIRECT, PyBUF_STRIDES, PyBUF_ND
@@ -25,10 +28,7 @@ cdef extern from "Python.h":
                                         char fort)
     void PyBuffer_Release(Py_buffer *view)
 
-import logging
-LOG = logging.getLogger(__name__)
-
-########################## Persistent Buffers ##############################
+# ================ Persistent Buffers ================
 # Objective:
 #   be able to store objects of any type that
 #     1) support the buffer protocol
@@ -124,13 +124,11 @@ cdef class PBuffer(AssignedByReference):
 
             PyBuffer_FillContiguousStrides(view.ndim, view.shape, view.strides,
                                            view.itemsize, 'C')
-#             view.strides[view.ndim-1] = view.itemsize
-#             for i in range(view.ndim-1, 0, -1):
-#                 view.strides[i-1] = view.strides[i] * view.shape[i]
 
         cBuffer.len = view.len
 
         if view.format is NULL:
+            # Reminder:
             # PyBUF_FULL_RO = PyBUF_FORMAT | PyBUF_FULL_RO | PyBUF_INDIRECT | \
             #                 PyBUF_STRIDES | PyBUF_ND
             PyBuffer_FillInfo(&view, value, view.buf, view.len, 1,
@@ -138,11 +136,8 @@ cdef class PBuffer(AssignedByReference):
         cBuffer.o2format = self.allocateAndCopy(view.format,
                                                 strlen(view.format)+1)
 
-#         if view.itemsize==0:
-#             cBuffer.itemsize = PyBuffer_SizeFromFormat(view.format)
         cBuffer.itemsize = view.itemsize
 
-        #cBuffer.readonly = view.readonly
         cBuffer.ndim = view.ndim
 
         LOG.debug("__init__ {} {} {}".format(cBuffer.o2format,
@@ -222,7 +217,7 @@ cdef class Buffer(TypeDescriptor):
     minNumberOfParameters = 0
     maxNumberOfParameters = 0
 
-################## BindingRules for persistent buffers #####################
+# ================ BindingRules for persistent buffers ================
 # Will be implemented with the reconstructor
 # cdef class BufferContents(BindingRule):
 #     """ Bind the contents of a node to the name of the variable.

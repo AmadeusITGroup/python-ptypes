@@ -32,11 +32,11 @@ Now we can start the actual work and create a new storage with a few skip lists.
       >>> from ptypes.pcollections import SkipList
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         self.define( SkipList('ListOfStrings')[self.schema.String] )
+      ...         self.define( SkipList('ListOfByteStrings')[self.schema.ByteString] )
       ...         self.define( SkipList('ListOfFloats')[self.schema.Float] )
       ...         self.define( SkipList('ListOfInts')[self.schema.Int] )
       ...         class Root(self.schema.Structure):
-      ...             sortedStrings= self.schema.ListOfStrings
+      ...             sortedByteStrings= self.schema.ListOfByteStrings
       ...             sortedFloats= self.schema.ListOfFloats
       ...             sortedInts= self.schema.ListOfInts
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
@@ -44,28 +44,28 @@ Now we can start the actual work and create a new storage with a few skip lists.
 We have created a new storage with a schema defining some persistent skip lists.
 Let's instantiate those lists!::
 
-      >>> p.root.sortedStrings = p.schema.ListOfStrings()
+      >>> p.root.sortedByteStrings = p.schema.ListOfByteStrings()
       >>> p.root.sortedFloats = p.schema.ListOfFloats()
       >>> p.root.sortedInts = p.schema.ListOfInts()
 
 Right now they are empty::
 
-      >>> for x in p.root.sortedStrings: print x
-      >>> for x in p.root.sortedFloats : print x
-      >>> for x in p.root.sortedInts   : print x
+      >>> for x in p.root.sortedByteStrings: print(x)
+      >>> for x in p.root.sortedFloats : print(x)
+      >>> for x in p.root.sortedInts   : print(x)
 
 So let's populate the lists::
 
       >>> from random import random
-      >>> text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."
+      >>> text = b"Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."
       >>> for word in text.split():
-      ...     p.root.sortedStrings.insert(word)
+      ...     p.root.sortedByteStrings.insert(word)
       ...     p.root.sortedInts.insert(len(word))
       ...     p.root.sortedFloats.insert(random())
 
 We can examine what data we entered into them::
 
-      >>> ' '.join( str(word) for word in p.root.sortedStrings)
+      >>> ' '.join( str(word) for word in p.root.sortedByteStrings)
       'At At Lorem Lorem Lorem Lorem Stet Stet accusam accusam aliquyam aliquyam amet, amet, amet. amet. clita clita consetetur consetetur diam diam diam diam dolor dolor dolor dolor dolore dolore dolores dolores duo duo ea ea eirmod eirmod elitr, elitr, eos eos erat, erat, est est et et et et et et et et gubergren, gubergren, invidunt invidunt ipsum ipsum ipsum ipsum justo justo kasd kasd labore labore magna magna no no nonumy nonumy rebum. rebum. sadipscing sadipscing sanctus sanctus sea sea sed sed sed sed sit sit sit sit takimata takimata tempor tempor ut ut vero vero voluptua. voluptua.'
       >>> [x.contents for x in p.root.sortedInts]
       [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 9, 9, 10, 10, 10, 10, 10, 10]
@@ -85,23 +85,25 @@ Now let's start at 0.5 and iterate to the end::
 
       >>> [x.contents for x in p.root.sortedFloats.range(0.5, None)]
       [0.5226933014113342, 0.5313147518470183, 0.5433155946072753, 0.5542263583182457, 0.556152990512616, 0.5641385986016807, 0.5808745525911077, 0.5912249836224895, 0.6035000029031871, 0.6054987779269864, 0.6084021478742864, 0.6172404962969068, 0.6390555147357233, 0.6435268044107577, 0.6512317704341258, 0.6768215650986809, 0.6840312745816469, 0.6840819180161107, 0.6852579929645369, 0.6909226510552873, 0.7165110905234495, 0.7188819901966701, 0.7227143160726478, 0.727693576886414, 0.734023602212773, 0.7447501528022076, 0.7484114914175455, 0.7550038512774011, 0.793770550765207, 0.7982586371435578, 0.8031721215739205, 0.8060468380335744, 0.8060952775041057, 0.8097396112110605, 0.8196436434587475, 0.8263653401364824, 0.8376565105032981, 0.8381453785681514, 0.8493361613899302, 0.8499390127809929, 0.8536542179472612, 0.8682415206080506, 0.8712847291984398, 0.8861924242970314, 0.9329778169654616, 0.9493234167956348, 0.9536660422656937, 0.9713032894127117, 0.9856811855948702]
-      >>> del x
+      >>> import sys
+      >>> if sys.version_info[0] == 2:
+      ...     del x
       >>> p.close()
 
 If we reopen the storage, we still have the same data in it::
 
       >>> p = Storage(mmapFileName, fileSize=1, stringRegistrySize=32)
-      >>> ' '.join( str(word) for word in p.root.sortedStrings)
+      >>> ' '.join( str(word) for word in p.root.sortedByteStrings)
       'At At Lorem Lorem Lorem Lorem Stet Stet accusam accusam aliquyam aliquyam amet, amet, amet. amet. clita clita consetetur consetetur diam diam diam diam dolor dolor dolor dolor dolore dolore dolores dolores duo duo ea ea eirmod eirmod elitr, elitr, eos eos erat, erat, est est et et et et et et et et gubergren, gubergren, invidunt invidunt ipsum ipsum ipsum ipsum justo justo kasd kasd labore labore magna magna no no nonumy nonumy rebum. rebum. sadipscing sadipscing sanctus sanctus sea sea sed sed sed sed sit sit sit sit takimata takimata tempor tempor ut ut vero vero voluptua. voluptua.'
 
 It is possible to retrieve individual values from the list::
 
-      >>> p.root.sortedStrings["Lorem"]                                       #doctest: +ELLIPSIS
-      <persistent String object 'Lorem' @offset 0x...L>
-      >>> p.root.sortedStrings["Balmoral"]                                       #doctest: +ELLIPSIS
+      >>> p.root.sortedByteStrings[b"Lorem"]                                       #doctest: +ELLIPSIS
+      <persistent ByteString object 'Lorem' @offset 0x...>
+      >>> p.root.sortedByteStrings[b"Balmoral"]                                       #doctest: +ELLIPSIS
       Traceback (most recent call last):
       ...
-      KeyError: 'Balmoral'
+      KeyError: ...'Balmoral'
       >>> "Make _ refer to something else"
       'Make _ refer to something else'
       >>> p.close()
@@ -118,7 +120,7 @@ Let's see what happens if we try to insert structures into a skip list::
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         class Agent(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...
@@ -127,7 +129,7 @@ Let's see what happens if we try to insert structures into a skip list::
       ...             sortedAgents= self.schema.ListOfAgents
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
       >>> p.root.sortedAgents = p.schema.ListOfAgents()
-      >>> for agentName, age, weight in (("Felix Leiter", 31, 95.3), ("Miss Moneypenny", 23, 65.4), ("Bill Tanner",57, 73.9)): #doctest: +ELLIPSIS
+      >>> for agentName, age, weight in ((b"Felix Leiter", 31, 95.3), (b"Miss Moneypenny", 23, 65.4), (b"Bill Tanner",57, 73.9)): #doctest: +ELLIPSIS
       ...     agent = p.schema.Agent(name=agentName, age=age, weight=weight )
       ...     p.root.sortedAgents.insert(agent)
       Traceback (most recent call last):
@@ -150,7 +152,7 @@ The snippet becomes part of the type definition of the list and gets saved into 
 
       >>> sortOrder = """
       ... # Demonstrate when this snippet is executed (ommit this in real world scenarios)
-      ... print "Sort order is now being defined."
+      ... print("Sort order is now being defined.")
       ...
       ... # This is the essential part. You have to define 'getKeyFromValue' and/or 'compare':
       ... from operator import attrgetter
@@ -158,14 +160,14 @@ The snippet becomes part of the type definition of the list and gets saved into 
       ...
       ... def compare(x, y):
       ...     # demonstrate when we compare stuff by printing x & y
-      ...     rv = cmp(x, y)
-      ...     print "Comparing {0} and {1}: {2}".format(repr(x), repr(y), rv)
+      ...     rv = (x > y) - (x < y)
+      ...     print("Comparing {0} and {1}: {2}".format(repr(x), repr(y), rv))
       ...     return rv
       ... """
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
       ...         class Agent(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...
@@ -175,12 +177,12 @@ The snippet becomes part of the type definition of the list and gets saved into 
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
       Sort order is now being defined.
       >>> p.root.sortedAgents = p.schema.ListOfAgents()
-      >>> for agentName, age, weight in (("Felix Leiter", 31, 95.3), ("Miss Moneypenny", 23, 65.4), ("Bill Tanner",57, 73.9)): #doctest: +ELLIPSIS
+      >>> for agentName, age, weight in ((b"Felix Leiter", 31, 95.3), (b"Miss Moneypenny", 23, 65.4), (b"Bill Tanner",57, 73.9)): #doctest: +ELLIPSIS
       ...     agent = p.schema.Agent(name=agentName, age=age, weight=weight )
       ...     p.root.sortedAgents.insert(agent)
       Comparing ...
       >>> for agent in p.root.sortedAgents:
-      ...     print agent.name
+      ...     print(agent.name)
       Miss Moneypenny
       Felix Leiter
       Bill Tanner
@@ -191,11 +193,11 @@ The next time we open the storage, the snippet is again executed::
 
       >>> p = Storage(mmapFileName, fileSize=16000, stringRegistrySize=32)
       Sort order is now being defined.
-      >>> agent = p.schema.Agent(name="Auric Goldfinger", age=65, weight=87.3 )
+      >>> agent = p.schema.Agent(name=b"Auric Goldfinger", age=65, weight=87.3 )
       >>> p.root.sortedAgents.insert(agent)                                       #doctest: +ELLIPSIS
       Comparing ...
       >>> for agent in p.root.sortedAgents:
-      ...     print agent.name
+      ...     print(agent.name)
       Miss Moneypenny
       Felix Leiter
       Bill Tanner

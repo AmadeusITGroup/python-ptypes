@@ -21,7 +21,6 @@ To make it actually usable, we have to subclass it and override its
 :meth:`~ptypes.storage.Storage.populateSchema()` callback method with code
 defining the structure of our persistent store.
 
-<<<<<<< HEAD
 The structure is defined in the
 :meth:`~ptypes.storage.Storage.populateSchema()` method by creating a class
 
@@ -58,8 +57,8 @@ The ``stringRegistrySize`` parameter is the number of interned strings the
 storage can hold.  Upon the first access to the ``root`` attribute of the
 storage an instance of the ``Root`` class is created and returned::
 
-      >>> p.root                                             #doctest: +ELLIPSIS
-      <persistent Root object @offset 0x...L>
+      >>> p.root                                           #doctest: +ELLIPSIS
+      <persistent Root object @offset 0x...>
 
 So far so good, but our storage is not very useful as it cannot hold any data:
 the root object has no attributes.
@@ -68,10 +67,10 @@ To do so, we need to specify a persistent type for each field.  The available
 persistent types are accessible as attributes on the module object representing
 the *schema* of the storage::
 
-      >>> p.schema
-      <module 'schema' (built-in)>
-      >>> sorted(dir(p.schema))
-      ['Float', 'Int', 'Root', 'String', 'Structure', '__doc__', '__name__']
+      >>> p.schema                                          #doctest: +ELLIPSIS
+      <module 'schema'...>
+      >>> [x for x in dir(p.schema) if not x.startswith('__')]
+      ['ByteString', 'Float', 'Int', 'Root', 'Structure']
 
 It is essential that before we lose the reference to a storage object we
 :meth:`~ptypes.storage.Storage.close()` it, otherwise the underlying file
@@ -85,16 +84,16 @@ having some useful fields::
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         print 'Creating an improved schema...'
+      ...         print('Creating an improved schema...')
       ...         class Root(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       >>> p = MyStorage(mmapFileName, fileSize=1, stringRegistrySize=32)
 
-Oops, we expected a message ``Creating an improved schema...``, why didn't we get it?
-Because the file under the storage has already been created and properly
-initialized (with the useless version of ``Root``.)
+Oops, we expected a message ``Creating an improved schema...``, why didn't we
+get it? Because the file under the storage has already been created and
+properly initialized (with the useless version of ``Root``.)
 The :meth:`~ptypes.storage.Storage.populateSchema()` method is only called once
 on a file.
 On subsequent attachment attempts the schema is read back from the storage.
@@ -132,7 +131,6 @@ To get the original Python integer back, you have to access the
       >>> p.root.weight, p.root.weight.contents                       #doctest: +ELLIPSIS
       (<persistent Float object '73.1415926' @offset 0x...>, 73.1415926)
 
-*... and a year later James put on some weight ;-)* ::
 
       >>> p.root.age.inc()
       >>> p.root.weight.add(31.45)
@@ -162,52 +160,52 @@ In contrast to :class:`~ptypes.storage.Int` and :class:`~ptypes.storage.Float`,
 persistent strings are assigned by reference.
 The assignment to a field will convert a Python string implicitly to a persistent string::
 
-      >>> p.root.name = 'James Bond'
+      >>> p.root.name = b'James Bond'
       >>> p.root.name                                                 #doctest: +ELLIPSIS
-      <persistent String object 'James Bond' @offset 0x...>
+      <persistent ByteString object ...'James Bond' @offset 0x...>
 
-We got back the persistent string; if we want it as a Python string object, we
+We got back the persistent string; if we want it as a Python byte string object, we
 access its :attr:`~ptypes.storage.Structure.`contents` attribute::
 
-      >>> p.root.name.contents
-      'James Bond'
+      >>> p.root.name.contents == b'James Bond'
+      True
 
-Or alternatively::
+Note that converting the persistent byte string to a string is possible, ::
 
       >>> str(p.root.name)
       'James Bond'
 
 The assignment of the Python string  works because the constructor of
-``p.schema.String`` accepts a Python string as its single argument.
+``p.schema.ByteString`` accepts a Python string as its single argument.
 Note however, that this solution leaks persistent storage space, as each time
 the Python string ``'James Bond'`` is  assigned,
 a new persistent string is allocated, storing the same sequence of characters::
 
-      >>> p.root.name.isSameAs(p.schema.String('James Bond'))
+      >>> p.root.name.isSameAs(p.schema.ByteString(b'James Bond'))
       False
-      >>> p.root.name == p.schema.String('James Bond')
+      >>> p.root.name == p.schema.ByteString(b'James Bond')
       True
 
 To remedy this, the recommended way of interning strings is via the *string
 registry* of the storage::
 
-      >>> p.root.name = p.stringRegistry.get('James Bond')
+      >>> p.root.name = p.stringRegistry.get(b'James Bond')
 
 This always returns proxy objects to the same persistent string::
 
-      >>> p.root.name == p.stringRegistry.get('James Bond')
+      >>> p.root.name == p.stringRegistry.get(b'James Bond')
       True
 
 Although the proxy objects are not the same::
 
-      >>> p.root.name is p.stringRegistry.get('James Bond')
+      >>> p.root.name is p.stringRegistry.get(b'James Bond')
       False
 
 This is just like with the Python strings::
 
-      >>> p.root.name.contents == p.schema.String('James Bond').contents
+      >>> p.root.name.contents == p.schema.ByteString(b'James Bond').contents
       True
-      >>> p.root.name.contents is p.schema.String('James Bond').contents
+      >>> p.root.name.contents is p.schema.ByteString(b'James Bond').contents
       False
 
 From an already existing file a storage can be created without specifying the
@@ -217,9 +215,9 @@ size parameters or a schema. Its contents is preserved::
 
       >>> p = Storage(mmapFileName)
       >>> p.root #doctest: +ELLIPSIS
-      <persistent Root object @offset 0x...L>
-      >>> p.root.name.contents
-      'James Bond'
+      <persistent Root object @offset 0x...>
+      >>> print(p.root.name.contents.decode())
+      James Bond
       >>> p.close()
       >>> os.unlink(mmapFileName)
 
@@ -242,12 +240,12 @@ which will actually create the new persistent type. Let's see this through an ex
       ...     def populateSchema(self):
       ...
       ...         class Agent(self.schema.Structure):
-      ...             name = self.schema.String
+      ...             name = self.schema.ByteString
       ...             age = self.schema.Int
       ...             weight = self.schema.Float
       ...
       ...         self.define(List('ListOfAgents')[Agent])
-      ...         self.define(Dict('AgentsByName')[self.schema.String, Agent])
+      ...         self.define(Dict('AgentsByName')[self.schema.ByteString, Agent])
       ...
       ...         class Root(self.schema.Structure):
       ...             agents = self.schema.ListOfAgents
@@ -267,12 +265,12 @@ all other :class:`~ptypes.storage.Structure` instances have to be created
 explicitly. Specifying keyword arguments as constructor parameters allows for
 the immediate initialization of the fields of the structure::
 
-      >>> for agentName, age in (("Felix Leiter", 31), ("Miss Moneypenny", 23), ("Bill Tanner",57)):
+      >>> for agentName, age in ((b"Felix Leiter", 31), (b"Miss Moneypenny", 23), (b"Bill Tanner",57)):
       ...     agent = p.schema.Agent(name=p.stringRegistry.get(agentName), age=age )
       ...     p.root.agents.append(agent)
       ...     p.root.agentsByName[agent.name] = agent
       >>> for agent in p.root.agents:
-      ...     print agent.name
+      ...     print(agent.name)
       Felix Leiter
       Miss Moneypenny
       Bill Tanner
@@ -285,15 +283,16 @@ got different representations of persistent strings in the previous examples.
 The persistent Dicts support :meth:`~ptypes.storage.Dict.iteritems()`,
 :meth:`~ptypes.storage.Dict.iterkeys()` and :meth:`~ptypes.storage.Dict.itervalues()`::
 
-      >>> for key, value in p.root.agentsByName.iteritems():
-      ...     print key, value                                    #doctest: +ELLIPSIS
-      Felix Leiter <persistent Agent object @offset 0x...>
+      >>> print('\n'.join(sorted(["{} {}".format(key, value) for key, value in p.root.agentsByName.iteritems()])))                           #doctest: +ELLIPSIS
       Bill Tanner <persistent Agent object @offset 0x...>
+      Felix Leiter <persistent Agent object @offset 0x...>
       Miss Moneypenny <persistent Agent object @offset 0x...>
-      >>> print [key.contents for key in p.root.agentsByName.iterkeys()]
-      ['Felix Leiter', 'Bill Tanner', 'Miss Moneypenny']
-      >>> print [agent.name.contents for agent in p.root.agentsByName.itervalues()]
-      ['Felix Leiter', 'Bill Tanner', 'Miss Moneypenny']
+      >>> sorted([key.contents for key in p.root.agentsByName.iterkeys()]) == \
+      ... [b'Bill Tanner', b'Felix Leiter', b'Miss Moneypenny']
+      True
+      >>> sorted([agent.name.contents for agent in p.root.agentsByName.itervalues()]) == \
+      ... [b'Bill Tanner', b'Felix Leiter', b'Miss Moneypenny']
+      True
 
 For persistent sets only :meth:`~ptypes.storage.Set.iterkeys()` is supported::
 
@@ -310,10 +309,12 @@ The dictionary accepts non-persistent keys to look up values, as long as it was
 defined with a key class that accpets the non-persistent key as its sole
 constructor argument::
 
-      >>> p.root.agentsByName["Miss Moneypenny"].weight = 57.3                #doctest: +ELLIPSIS
+      >>> p.root.agentsByName[b"Miss Moneypenny"].weight = 57.3                #doctest: +ELLIPSIS
       >>> for agent in p.root.agents:
-      ...     print agent.weight.contents,
-      0.0 57.3 0.0
+      ...     print(agent.weight.contents)
+      0.0
+      57.3
+      0.0
 
 Now let's finish with this storage and create a new one to demonstrate how Dict
 and List work with types assigned by value::
@@ -321,7 +322,7 @@ and List work with types assigned by value::
       >>> p.close()                                                             #doctest: +ELLIPSIS
       Traceback (most recent call last):
       ...
-      ValueError: Cannot close <MyStorage '...'> - some proxies are still around: <persistent Agent object @offset 0x...L> <persistent String object 'Miss Moneypenny' @offset 0x...L> <persistent Agent object @offset 0x...L>
+      ValueError: Cannot close <MyStorage '...'> - some proxies are still around: <persistent Agent object @offset 0x...>
 
 Ooops... Indeed, the ``key``, ``value`` and ``agent`` references from the
 previous examples are still around, and if we closed the storage (which unmaps
@@ -332,7 +333,7 @@ Therefore, all the references to proxy objects belonging to the storage (except
 the reference of the storage object to the root, in our example ``p.root``)
 must be deleted before closing the storage::
 
-      >>> del key, value, agent
+      >>> key = value = agent = None
       >>> p.close()
 
 Accessing the root property after closing the storage or trying to close it
@@ -370,18 +371,36 @@ descriptors work just as well with types assigned by value::
       ...    p.root.uints.append(i)
       ...    p.root.floats.append(random())
       >>> for i in p.root.uints:
-      ...      print i.contents,
-      0 1 2 3 4 5 6 7 8 9
-      >>> for f in p.root.floats:
-      ...      print f.contents,
-      0.259008491715 0.685257992965 0.684081918016 0.84933616139 0.185724173874 0.230558608965 0.147159918168 0.225162935562 0.734023602213 0.13021302276
+      ...      print(i.contents)
+      0
+      1
+      2
+      3
+      4
+      5
+      6
+      7
+      8
+      9
+      >>> for f in p.root.floats:                           #doctest: +ELLIPSIS
+      ...      print(f.contents)
+      0.25900849171...
+      0.68525799296...
+      0.68408191801...
+      0.8493361613...
+      0.18572417387...
+      0.23055860896...
+      0.14715991816...
+      0.22516293556...
+      0.73402360221...
+      0.1302130227...
       >>> del i, f
       >>> p.close()
       >>> os.unlink(mmapFileName)
 
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         self.define(Dict('MyType')[self.schema.Int, self.schema.String])
+      ...         self.define(Dict('MyType')[self.schema.Int, self.schema.ByteString])
       ...
       ...         class Root(self.schema.Structure):
       ...             myType = self.schema.MyType
@@ -423,18 +442,22 @@ definitions::
       >>> from ptypes.storage import Set
       >>> class MyStorage(Storage):
       ...     def populateSchema(self):
-      ...         stringSet1 = self.define(Dict('ThisIsInFactASet')[self.schema.String, None])
-      ...         stringSet2 = self.define(Set('ThisIsAnotherSet')[self.schema.String])
+      ...         stringSet1 = self.define(Dict('ThisIsInFactASet')[self.schema.ByteString, None])
+      ...         stringSet2 = self.define(Set('ThisIsAnotherSet')[self.schema.ByteString])
       ...         class Root(self.schema.Structure):
       ...             strings1 = stringSet1
       ...             strings2 = stringSet2
       >>> p = MyStorage(mmapFileName, 1, 32)                      
       >>> p.root.strings1 = p.schema.ThisIsInFactASet(13)
-      >>> s1 = p.root.strings1.get('abc\x00def')
-      >>> s1                                                        #doctest: +ELLIPSIS
-      <persistent String object 'abc\x00def' @offset 0x...L>
-      >>> s1.contents
-      'abc\x00def'
+      >>> s1 = p.root.strings1.get(b'abc\x00def')
+      >>> s1                                                #doctest: +ELLIPSIS
+      <persistent ByteString object 'abc...def' @offset 0x...>
+
+      Note that in the above between 'abc' and 'def' the null 
+      character is displayed according to the encoding of your terminal
+
+      >>> s1.contents == b'abc\x00def'
+      True
 
 Note that type definitions are not interchangable, even if they come from the same type
 descriptor with the same parameters::

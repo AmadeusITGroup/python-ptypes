@@ -26,39 +26,63 @@ First we import the necessary classes::
       ...             myBuffer = MyBuffer
       >>> p = MyStorage(mmapFileName, fileSize=16000, stringRegistrySize=32)
 
-      >>> s = "This is a string."
+      >>> s = b"This is a string."
       >>> p.root.myBuffer = p.schema.Buffer(s)
       >>> p.root.myBuffer                                             #doctest: +ELLIPSIS
-      <persistent Buffer object @offset 0x...L>
+      <persistent Buffer object @offset 0x...>
 
       >>> m = memoryview(s)
-      >>> m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides
-      ('B', 1L, 1L, True, (17L,), (1L,))
+      >>> (m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides) ==\
+      ... ('B', 1, 1, True, (17,), (1,))
+      True
 
       >>> m = memoryview(p.root.myBuffer)
-      >>> m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides
-      ('B', 1L, 1L, False, (17L,), (1L,))
+      >>> (m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides) == \
+      ... ('B', 1, 1, False, (17,), (1,))
+      True
 
-      >>> m.tobytes()
-      'This is a string.'
+      >>> m.tobytes() == b'This is a string.'
+      True
 
       >>> del m
       >>> p.close()
 
       >>> p = MyStorage(mmapFileName)
       >>> m = memoryview(p.root.myBuffer)
-      >>> m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides
-      ('B', 1L, 1L, False, (17L,), (1L,))
+      >>> (m.format, m.itemsize, m.ndim, m.readonly, m.shape, m.strides) ==\
+      ... ('B', 1, 1, False, (17,), (1,))
+      True
+
+In Python 3 arrays expose their data over the buffer protocol. However,
+there is no way to construct an array directly from an existing buffer: first
+a ``memoryview`` has to be created, which can be used as a sequence initializing 
+the array.
+
+The design decision that arrays cannot be directly constructed from
+a buffer is understandable in the light of arrays supporting the 
+:meth:`~append()` and :meth:`~extend()` methods: these may demand the 
+re-allocation of the buffer underlying the array.
+
+In Python 2 arrays do not support the buffer protocol.::
 
       >>> from array import array
       >>> a=array('b', range(10))
-      >>> p.schema.Buffer(a)                                             #doctest: +ELLIPSIS
-      Traceback (most recent call last):
-       ...
-      TypeError: Objects of type 'array' do not support the buffer protocol.
+      >>> import sys
+      >>> if sys.version_info[0] == 3:
+      ...     pa = p.schema.Buffer(a)     # no exception
+      ...     a2 = array('b', bytes(pa))  # data is copied from the persistent buffer
+      ...     assert a == a2
+      ...     assert a is not a2
+      ...     del pa
+      ... else: 
+      ...     try: p.schema.Buffer(a)
+      ...     except TypeError as e: 
+      ...         assert e.message == "Objects of type 'array' do not support the buffer protocol." 
+      ...     else:
+      ...         assert False, "dead code"
 
-      >>> m.tobytes()
-      'This is a string.'
+      >>> m.tobytes() == b'This is a string.'
+      True
       >>> del m
       >>> p.close()
 
